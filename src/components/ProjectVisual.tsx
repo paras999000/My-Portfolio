@@ -33,6 +33,11 @@ export const ProjectVisual: React.FC<ProjectVisualProps> = ({
   // when leaving viewport. This strictly bounds concurrent WebGL contexts to <= 2-3,
   // preventing browser WebGL context exhaustion (error 0x0505) and tab crashes.
   useEffect(() => {
+    if (priority) {
+      setIsVisible(true);
+      return;
+    }
+
     const el = containerRef.current;
     if (!el) return;
 
@@ -48,8 +53,8 @@ export const ProjectVisual: React.FC<ProjectVisualProps> = ({
         });
       },
       {
-        rootMargin: '160px 0px 160px 0px',
-        threshold: 0.02
+        rootMargin: '20px 0px 20px 0px',
+        threshold: 0.05
       }
     );
 

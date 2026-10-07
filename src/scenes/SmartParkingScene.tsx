@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { createStudioGround, setupStudioLighting } from './threeUtils';
+import { createStudioGround, setupStudioLighting, safeCreateRenderer, safeDisposeRenderer } from './threeUtils';
 
 interface SmartParkingSceneProps {
   interactive?: boolean;
@@ -13,16 +13,12 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
     const container = containerRef.current;
     if (!container) return;
 
-    let renderer: THREE.WebGLRenderer;
-    try {
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        powerPreference: 'high-performance'
-      });
-    } catch {
-      return;
-    }
+    const renderer = safeCreateRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
+    if (!renderer) return;
 
     const width = container.clientWidth || 480;
     const height = container.clientHeight || 380;
@@ -369,10 +365,7 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
       if (interactive) {
         container.removeEventListener('mousemove', handleMouseMove);
       }
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
-      renderer.dispose();
+      safeDisposeRenderer(renderer, container);
     };
   }, [interactive]);
 

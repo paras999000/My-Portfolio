@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { createContactShadowTexture } from './threeUtils';
+import { createContactShadowTexture, safeCreateRenderer, safeDisposeRenderer } from './threeUtils';
 
 interface ThreeDPaperProps {
   interactive?: boolean;
@@ -13,16 +13,12 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
     const container = containerRef.current;
     if (!container) return;
 
-    let renderer: THREE.WebGLRenderer;
-    try {
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        powerPreference: 'high-performance'
-      });
-    } catch {
-      return;
-    }
+    const renderer = safeCreateRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
+    if (!renderer) return;
 
     const width = container.clientWidth || 600;
     const height = container.clientHeight || 500;
@@ -285,7 +281,7 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
       borderMat.dispose();
       shadowGeo.dispose();
       shadowMat.dispose();
-      renderer.dispose();
+      safeDisposeRenderer(renderer, container);
     };
   }, [interactive]);
 

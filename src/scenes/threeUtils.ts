@@ -147,3 +147,62 @@ export function setupStudioLighting(scene: THREE.Scene): {
 
   return { keyLight, fillLight, rimLight, ambLight, hemiLight };
 }
+
+/**
+ * Safely creates a WebGLRenderer with automatic retry and error handling.
+ */
+export function safeCreateRenderer(
+  parameters: THREE.WebGLRendererParameters = {}
+): THREE.WebGLRenderer | null {
+  try {
+    return new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance',
+      ...parameters
+    });
+  } catch (err) {
+    console.warn('WebGL context creation failed on first attempt, trying fallback:', err);
+    try {
+      return new THREE.WebGLRenderer({
+        antialias: false,
+        alpha: true,
+        powerPreference: 'default',
+        ...parameters
+      });
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Forcefully and cleanly destroys a WebGLRenderer, ensuring the browser immediately
+ * frees the hardware WebGL context back to the global pool.
+ */
+export function safeDisposeRenderer(
+  renderer: THREE.WebGLRenderer | null,
+  container?: HTMLElement | null
+) {
+  if (!renderer) return;
+
+  try {
+    if (container && renderer.domElement && container.contains(renderer.domElement)) {
+      container.removeChild(renderer.domElement);
+    }
+
+    renderer.dispose();
+    renderer.forceContextLoss();
+
+    const gl = renderer.getContext();
+    if (gl) {
+      const loseContextExt = gl.getExtension('WEBGL_lose_context');
+      if (loseContextExt) {
+        loseContextExt.loseContext();
+      }
+    }
+  } catch (e) {
+    console.warn('Error during WebGL context disposal:', e);
+  }
+}
+

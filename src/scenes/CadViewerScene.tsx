@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import type { CadModelItem } from '../data/cadModelsData';
-import { createStudioGround, setupStudioLighting } from './threeUtils';
+import { createStudioGround, setupStudioLighting, safeCreateRenderer, safeDisposeRenderer } from './threeUtils';
 
 interface CadViewerSceneProps {
   model: CadModelItem;
@@ -154,15 +154,15 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     const container = containerRef.current;
     if (!container) return;
 
-    let renderer: THREE.WebGLRenderer;
-    try {
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        powerPreference: 'high-performance'
-      });
-    } catch {
+    const renderer = safeCreateRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
+    if (!renderer) {
       setErrorOccurred(true);
+      setErrorMessage('Hardware WebGL context limit reached. Reload to re-initialize.');
+      setLoading(false);
       return;
     }
 
@@ -525,10 +525,7 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
       window.removeEventListener('touchend', onTouchEnd);
       observer.disconnect();
       resizeObserver.disconnect();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
-      renderer.dispose();
+      safeDisposeRenderer(renderer, container);
       sceneStateRef.current = null;
     };
   }, []);
