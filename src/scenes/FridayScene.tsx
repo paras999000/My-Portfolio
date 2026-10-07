@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-import { createStudioGround, setupStudioLighting, safeCreateRenderer, safeDisposeRenderer } from './threeUtils';
+import { createStudioGround, setupStudioLighting, safeCreateRenderer, safeDisposeRenderer, getAssetUrl } from './threeUtils';
+
 
 interface FridaySceneProps {
   interactive?: boolean;
@@ -371,7 +372,7 @@ export const FridayScene: React.FC<FridaySceneProps> = ({
         onLoadGeometry(fridayGeometryCache.get(def.fileUrl)!);
       } else {
         loader.load(
-          def.fileUrl,
+          getAssetUrl(def.fileUrl),
           (geo) => {
             fridayGeometryCache.set(def.fileUrl, geo);
             onLoadGeometry(geo);

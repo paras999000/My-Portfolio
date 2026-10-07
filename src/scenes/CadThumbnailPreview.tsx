@@ -2,7 +2,8 @@ import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import type { CadModelItem } from '../data/cadModelsData';
-import { createContactShadowTexture, safeCreateRenderer, safeDisposeRenderer } from './threeUtils';
+import { createContactShadowTexture, safeCreateRenderer, safeDisposeRenderer, getAssetUrl } from './threeUtils';
+
 
 interface CadThumbnailPreviewProps {
   model: CadModelItem;
@@ -207,7 +208,7 @@ export const CadThumbnailPreview: React.FC<CadThumbnailPreviewProps> = ({
       } else {
         const loader = new STLLoader();
         loader.load(
-          model.fileUrl,
+          getAssetUrl(model.fileUrl),
           (g) => {
             geometryCache.set(model.fileUrl, g);
             setupGeo(g.clone());

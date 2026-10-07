@@ -2,7 +2,8 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import type { CadModelItem } from '../data/cadModelsData';
-import { createStudioGround, setupStudioLighting, safeCreateRenderer, safeDisposeRenderer } from './threeUtils';
+import { createStudioGround, setupStudioLighting, safeCreateRenderer, safeDisposeRenderer, getAssetUrl } from './threeUtils';
+
 
 interface CadViewerSceneProps {
   model: CadModelItem;
@@ -318,7 +319,7 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
           }, 8000);
 
           loader.load(
-            m.fileUrl,
+            getAssetUrl(m.fileUrl),
             (geometry) => {
               didFinish = true;
               clearTimeout(timeoutId);
