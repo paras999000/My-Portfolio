@@ -19,10 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onConnectClick }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location.pathname]);
+
 
   const navLinks = [
     { label: 'WORK', path: '/work' },
@@ -213,6 +210,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onConnectClick }) => {
             <Link
               key={item.path}
               to={item.path}
+              onClick={() => setMobileMenuOpen(false)}
               style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.9rem',

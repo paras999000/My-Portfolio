@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import { createStudioGround, setupStudioLighting } from './threeUtils';
 
 interface SafexSceneProps {
   interactive?: boolean;
@@ -29,141 +30,217 @@ export const SafexScene: React.FC<SafexSceneProps> = ({ interactive = true }) =>
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.3;
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(4.5, 3.8, 6.2);
-    camera.lookAt(0, -0.2, 0);
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+    camera.position.set(4.8, 4.0, 5.8);
+    camera.lookAt(0, 0.2, 0);
+
+    setupStudioLighting(scene);
+    createStudioGround(scene, 5.5, 5.5, -1.6, 2.2);
 
     const mineGroup = new THREE.Group();
     scene.add(mineGroup);
 
-    // --- 1. Subterranean Strata & Mine Levels ---
-    // 3 distinct depth levels: Level 0 (Surface Shaft), Level -1 (-120m), Level -2 (-280m)
-    const levelY = [0.8, -0.2, -1.2];
-
-    levelY.forEach((ly) => {
-      const planeGrid = new THREE.GridHelper(4.5, 10, 0x1e293b, 0x0f172a);
-      planeGrid.position.y = ly;
-      mineGroup.add(planeGrid);
+    // --- 1. SUBTERRANEAN ROCK STRATA CUTAWAY BLOCKS ---
+    // Multi-tiered geological layers with tactile rock appearance
+    const rockMat = new THREE.MeshStandardMaterial({
+      color: 0x181c24,
+      roughness: 0.9,
+      metalness: 0.1
     });
 
-    // --- 2. Tunnel Network (Wireframe & Structural Corridors) ---
-    // Vertical ventilation & elevator shafts connecting levels
-    const shaftGeo = new THREE.CylinderGeometry(0.2, 0.2, 2.2, 8, 1, true);
-    const shaftMat = new THREE.MeshBasicMaterial({
-      color: 0x1e293b,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.4
-    });
-    const shaft1 = new THREE.Mesh(shaftGeo, shaftMat);
-    shaft1.position.set(-1.2, -0.2, -0.8);
-    mineGroup.add(shaft1);
-
-    const shaft2 = new THREE.Mesh(shaftGeo, shaftMat);
-    shaft2.position.set(1.4, -0.2, 0.9);
-    mineGroup.add(shaft2);
-
-    // Horizontal mine galleries (structural box tunnels)
-    const tunnelBoxes = [
-      { pos: [-0.5, 0.8, -0.4], size: [2.2, 0.35, 0.4] },
-      { pos: [0.3, -0.2, 0.0], size: [2.8, 0.35, 0.4] },
-      { pos: [-0.8, -0.2, 0.5], size: [0.4, 0.35, 1.8] },
-      { pos: [0.0, -1.2, 0.4], size: [2.5, 0.35, 0.4] }
+    // 3 Subterranean Tiers: Level 0 (Surface Portal), Level -1 (-120m), Level -2 (-280m)
+    const tiers = [
+      { y: 0.9, depth: "SURFACE // 0.0M", w: 3.8, d: 2.8 },
+      { y: -0.1, depth: "SUB-TIER 01 // -120M", w: 4.2, d: 3.2 },
+      { y: -1.1, depth: "SUB-TIER 02 // -280M", w: 4.6, d: 3.6 }
     ];
 
-    tunnelBoxes.forEach((tb) => {
-      const g = new THREE.BoxGeometry(tb.size[0], tb.size[1], tb.size[2]);
-      const edges = new THREE.EdgesGeometry(g);
-      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({
-        color: 0x475569,
-        transparent: true,
-        opacity: 0.4
-      }));
-      line.position.set(tb.pos[0], tb.pos[1], tb.pos[2]);
-      mineGroup.add(line);
+    tiers.forEach((tier) => {
+      // Geological floor plate
+      const floorGeo = new THREE.BoxGeometry(tier.w, 0.08, tier.d);
+      const floorMesh = new THREE.Mesh(floorGeo, rockMat);
+      floorMesh.position.y = tier.y;
+      mineGroup.add(floorMesh);
+
+      // Floor boundary wireframe edge
+      const edges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(floorGeo),
+        new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.45 })
+      );
+      edges.position.y = tier.y;
+      mineGroup.add(edges);
     });
 
-    // --- 3. Hazard Area (Amber/Red Warning Pulse) ---
+    // --- 2. VERTICAL ELEVATOR SHAFT & STRUCTURAL ARCHES ---
+    // Mine Hoist Headframe & Vertical Shaft
+    const shaftPillarsGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.4, 8);
+    const steelMat = new THREE.MeshStandardMaterial({
+      color: 0x3b4252,
+      roughness: 0.4,
+      metalness: 0.8
+    });
+
+    [-0.3, 0.3].forEach((ox) => {
+      [-0.3, 0.3].forEach((oz) => {
+        const pillar = new THREE.Mesh(shaftPillarsGeo, steelMat);
+        pillar.position.set(-1.4 + ox, -0.1, -0.6 + oz);
+        mineGroup.add(pillar);
+      });
+    });
+
+    // Elevator Cage Frame inside shaft
+    const cageGeo = new THREE.BoxGeometry(0.55, 0.65, 0.55);
+    const cageWire = new THREE.LineSegments(
+      new THREE.EdgesGeometry(cageGeo),
+      new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6 })
+    );
+    cageWire.position.set(-1.4, -0.1, -0.6);
+    mineGroup.add(cageWire);
+
+    // Tunnel Arch Timber / Steel Reinforcements
+    const archMat = new THREE.MeshStandardMaterial({ color: 0x2e3440, roughness: 0.6, metalness: 0.5 });
+    const archPositions = [
+      { x: -0.6, y: -0.1, z: 0.4 },
+      { x: 0.2, y: -0.1, z: 0.4 },
+      { x: 1.0, y: -0.1, z: 0.4 },
+      { x: -0.4, y: -1.1, z: 0.0 },
+      { x: 0.4, y: -1.1, z: 0.0 },
+      { x: 1.2, y: -1.1, z: 0.0 }
+    ];
+
+    archPositions.forEach((pos) => {
+      const archMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.7), archMat);
+      archMesh.position.set(pos.x, pos.y + 0.28, pos.z);
+      mineGroup.add(archMesh);
+    });
+
+    // Subterranean Tunnel Lanterns (Warm utility lighting along corridors)
+    const lanternPositions = [
+      [-0.6, 0.2, 0.4],
+      [1.0, 0.2, 0.4],
+      [0.4, -0.8, 0.0]
+    ];
+    lanternPositions.forEach(([lx, ly, lz]) => {
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.04, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xfde047 })
+      );
+      bulb.position.set(lx, ly, lz);
+      mineGroup.add(bulb);
+
+      const lanternLight = new THREE.PointLight(0xfde047, 0.8, 2.5);
+      lanternLight.position.set(lx, ly, lz);
+      mineGroup.add(lanternLight);
+    });
+
+    // --- 3. HAZARD ZONE (Simulated Methane / Collapse Zone) ---
     const hazardGroup = new THREE.Group();
-    hazardGroup.position.set(1.2, -1.2, 0.4);
+    hazardGroup.position.set(1.5, -1.05, 0.0);
     mineGroup.add(hazardGroup);
 
-    const hazardRadiusGeo = new THREE.RingGeometry(0.1, 0.45, 16);
-    hazardRadiusGeo.rotateX(-Math.PI / 2);
-    const hazardRadiusMat = new THREE.MeshBasicMaterial({
-      color: 0xf87171,
+    // Hazard Area Warning Radius Decal
+    const hazardDiscGeo = new THREE.RingGeometry(0.05, 0.55, 32);
+    hazardDiscGeo.rotateX(-Math.PI / 2);
+    const hazardDiscMat = new THREE.MeshBasicMaterial({
+      color: 0xef4444,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.35,
       side: THREE.DoubleSide
     });
-    const hazardRing = new THREE.Mesh(hazardRadiusGeo, hazardRadiusMat);
-    hazardGroup.add(hazardRing);
+    const hazardDisc = new THREE.Mesh(hazardDiscGeo, hazardDiscMat);
+    hazardGroup.add(hazardDisc);
 
-    const hazardBeaconGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
-    const hazardBeaconMat = new THREE.MeshBasicMaterial({
-      color: 0xfbbf24,
-      wireframe: true
+    // Hazard Industrial Beacon Strobe
+    const strobeBeaconGeo = new THREE.OctahedronGeometry(0.12, 0);
+    const strobeBeaconMat = new THREE.MeshStandardMaterial({
+      color: 0xf59e0b,
+      emissive: 0xef4444,
+      emissiveIntensity: 0.8,
+      roughness: 0.2
     });
-    const hazardBeacon = new THREE.Mesh(hazardBeaconGeo, hazardBeaconMat);
-    hazardBeacon.position.y = 0.2;
-    hazardGroup.add(hazardBeacon);
+    const strobeBeacon = new THREE.Mesh(strobeBeaconGeo, strobeBeaconMat);
+    strobeBeacon.position.y = 0.25;
+    hazardGroup.add(strobeBeacon);
 
-    // --- 4. Emergency Safe Evacuation Route (Green Glowing Path) ---
-    // Path starting from near hazard at Level -2 -> through shaft -> Level -1 -> surface exit
-    const routeWaypoints = [
-      new THREE.Vector3(0.5, -1.2, 0.4),
-      new THREE.Vector3(-0.8, -1.2, 0.4),
-      new THREE.Vector3(-1.2, -0.8, 0.0),
-      new THREE.Vector3(-1.2, -0.2, -0.8),
-      new THREE.Vector3(0.0, -0.2, -0.4),
-      new THREE.Vector3(1.2, -0.2, 0.0),
-      new THREE.Vector3(1.4, 0.4, 0.6),
-      new THREE.Vector3(1.4, 0.8, 0.9),
-      new THREE.Vector3(0.2, 0.8, 0.5) // Safe Refuge / Surface
+    // --- 4. SAFE EVACUATION ESCORT ROUTE (Animate Corridors) ---
+    // Smooth 3D spline traversing from hazard boundary at -280m -> Shaft -> Level -1 -> Surface refuge
+    const escapeWaypoints = [
+      new THREE.Vector3(0.9, -1.05, 0.0),
+      new THREE.Vector3(0.0, -1.05, 0.0),
+      new THREE.Vector3(-1.0, -1.05, -0.2),
+      new THREE.Vector3(-1.4, -0.8, -0.6), // Shaft Ascent
+      new THREE.Vector3(-1.4, -0.05, -0.6), // Shaft Mid Tier
+      new THREE.Vector3(-0.8, -0.05, 0.2),
+      new THREE.Vector3(0.4, -0.05, 0.4),
+      new THREE.Vector3(1.2, 0.45, 0.2),   // Surface Incline
+      new THREE.Vector3(1.4, 0.95, -0.4)   // Surface Safe Refuge Portal
     ];
 
-    const routeCurve = new THREE.CatmullRomCurve3(routeWaypoints);
-    const routePoints = routeCurve.getPoints(120);
-    const routeGeo = new THREE.BufferGeometry().setFromPoints(routePoints);
-    const routeMat = new THREE.LineBasicMaterial({
+    const escapeCurve = new THREE.CatmullRomCurve3(escapeWaypoints);
+    const escapePts = escapeCurve.getPoints(120);
+    const escapeGeo = new THREE.BufferGeometry().setFromPoints(escapePts);
+    const escapeMat = new THREE.LineBasicMaterial({
       color: 0x34d399,
       linewidth: 2,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.88
     });
-    const routeLine = new THREE.Line(routeGeo, routeMat);
-    mineGroup.add(routeLine);
+    const escapeLine = new THREE.Line(escapeGeo, escapeMat);
+    mineGroup.add(escapeLine);
 
-    // --- 5. Miner Marker & Escort Beacon ---
-    const minerGeo = new THREE.SphereGeometry(0.08, 12, 12);
-    const minerMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-    const minerMesh = new THREE.Mesh(minerGeo, minerMat);
-    mineGroup.add(minerMesh);
+    // Directional flow markers along evacuation route
+    const flowMarkerGeo = new THREE.ConeGeometry(0.04, 0.1, 8);
+    flowMarkerGeo.rotateX(Math.PI / 2);
+    const flowMarkerMat = new THREE.MeshBasicMaterial({ color: 0x34d399 });
+    const flowMarkers: THREE.Mesh[] = [];
+    for (let f = 0; f < 5; f++) {
+      const fm = new THREE.Mesh(flowMarkerGeo, flowMarkerMat);
+      mineGroup.add(fm);
+      flowMarkers.push(fm);
+    }
 
-    // Miner locator ring
-    const minerRingGeo = new THREE.RingGeometry(0.09, 0.16, 16);
-    minerRingGeo.rotateX(-Math.PI / 2);
-    const minerRingMat = new THREE.MeshBasicMaterial({
+    // --- 5. MINER TELEMETRY MARKER ---
+    const minerGroup = new THREE.Group();
+    mineGroup.add(minerGroup);
+
+    const minerMarkerMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.09, 16, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0x38bdf8,
+        emissive: 0x0284c7,
+        emissiveIntensity: 0.6,
+        roughness: 0.2
+      })
+    );
+    minerGroup.add(minerMarkerMesh);
+
+    // Miner Radar Ring
+    const minerRadarGeo = new THREE.RingGeometry(0.12, 0.24, 24);
+    minerRadarGeo.rotateX(-Math.PI / 2);
+    const minerRadarMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
       opacity: 0.6,
       side: THREE.DoubleSide
     });
-    const minerRing = new THREE.Mesh(minerRingGeo, minerRingMat);
-    minerMesh.add(minerRing);
+    const minerRadar = new THREE.Mesh(minerRadarGeo, minerRadarMat);
+    minerGroup.add(minerRadar);
 
-    // Surface Safe Evacuation Anchor / Beacon
-    const exitBeaconGeo = new THREE.OctahedronGeometry(0.14, 0);
-    const exitBeaconMat = new THREE.MeshBasicMaterial({
-      color: 0x34d399,
-      wireframe: true
+    // Surface Refuge Safe Anchor Point
+    const refugePortalGeo = new THREE.BoxGeometry(0.3, 0.4, 0.3);
+    const refugePortalMat = new THREE.MeshStandardMaterial({
+      color: 0x10b981,
+      emissive: 0x059669,
+      emissiveIntensity: 0.4,
+      roughness: 0.3
     });
-    const exitBeacon = new THREE.Mesh(exitBeaconGeo, exitBeaconMat);
-    exitBeacon.position.copy(routeWaypoints[routeWaypoints.length - 1]);
-    mineGroup.add(exitBeacon);
+    const refugePortal = new THREE.Mesh(refugePortalGeo, refugePortalMat);
+    refugePortal.position.copy(escapeWaypoints[escapeWaypoints.length - 1]);
+    mineGroup.add(refugePortal);
 
     // Mouse Tracking
     const mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
@@ -177,6 +254,12 @@ export const SafexScene: React.FC<SafexSceneProps> = ({ interactive = true }) =>
     if (interactive) {
       container.addEventListener('mousemove', handleMouseMove);
     }
+
+    let isVisible = true;
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting;
+    });
+    observer.observe(container);
 
     const handleResize = () => {
       if (!container) return;
@@ -196,31 +279,38 @@ export const SafexScene: React.FC<SafexSceneProps> = ({ interactive = true }) =>
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      if (!isVisible) return;
+
       const t = clock.getElapsedTime();
 
       mouse.x += (mouse.targetX - mouse.x) * 0.05;
       mouse.y += (mouse.targetY - mouse.y) * 0.05;
 
-      // Miner traversal progress along evacuation route
-      const minerProgress = (t * 0.12) % 1;
-      const posOnRoute = routeCurve.getPointAt(minerProgress);
-      minerMesh.position.copy(posOnRoute);
+      // Miner progression along escape curve
+      const minerProg = (t * 0.09) % 1;
+      const minerPos = escapeCurve.getPointAt(minerProg);
+      minerGroup.position.copy(minerPos);
 
-      // Subtle pulse on miner locator ring
-      const ringScale = 1 + Math.sin(t * 5.0) * 0.3;
-      minerRing.scale.set(ringScale, ringScale, 1);
+      // Radar pulse
+      const radarScale = 1 + Math.sin(t * 4.0) * 0.35;
+      minerRadar.scale.set(radarScale, radarScale, 1);
 
-      // Hazard beacon pulse & warning rotation
-      hazardBeacon.rotation.y = t * 1.5;
-      const hazScale = 1 + Math.sin(t * 3.5) * 0.25;
-      hazardRing.scale.set(hazScale, hazScale, 1);
+      // Hazard strobe rotation & warning pulse
+      strobeBeacon.rotation.y = t * 2.0;
+      const hazPulse = 1 + Math.sin(t * 3.5) * 0.2;
+      hazardDisc.scale.set(hazPulse, hazPulse, 1);
 
-      // Exit beacon subtle spin
-      exitBeacon.rotation.y = t * 0.8;
-      exitBeacon.rotation.z = Math.sin(t * 0.5) * 0.4;
+      // Flow direction markers along green evacuation route
+      flowMarkers.forEach((fm, idx) => {
+        const p = ((t * 0.15 + idx * 0.2) % 1);
+        const pt = escapeCurve.getPointAt(p);
+        const tangent = escapeCurve.getTangentAt(p);
+        fm.position.copy(pt);
+        fm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent);
+      });
 
-      // Slow continuous architectural turntable drift + mouse tilt
-      mineGroup.rotation.y = t * 0.08 + mouse.x * 0.25;
+      // Simulation turntable drift + mouse tilt
+      mineGroup.rotation.y = t * 0.06 + mouse.x * 0.3;
       mineGroup.rotation.x = mouse.y * 0.15;
 
       renderer.render(scene, camera);
@@ -230,10 +320,11 @@ export const SafexScene: React.FC<SafexSceneProps> = ({ interactive = true }) =>
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      observer.disconnect();
+      resizeObserver.disconnect();
       if (interactive) {
         container.removeEventListener('mousemove', handleMouseMove);
       }
-      resizeObserver.disconnect();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
@@ -242,7 +333,7 @@ export const SafexScene: React.FC<SafexSceneProps> = ({ interactive = true }) =>
   }, [interactive]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '360px' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '380px' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }} />
 
       <div 
@@ -253,15 +344,16 @@ export const SafexScene: React.FC<SafexSceneProps> = ({ interactive = true }) =>
           fontFamily: 'var(--font-mono)',
           fontSize: '0.68rem',
           color: 'var(--status-active)',
-          background: 'rgba(8, 9, 13, 0.75)',
-          padding: '3px 8px',
+          background: 'rgba(8, 9, 13, 0.85)',
+          padding: '4px 10px',
           borderRadius: '2px',
           border: '1px solid var(--border-subtle)',
           pointerEvents: 'none'
         }}
       >
-        TELEMETRY: HAZARD → RESPONSE → SAFE ROUTE → EVACUATION
+        SIMULATION: HAZARD → RESPONSE → SAFE ROUTE → EVACUATION
       </div>
+
       <div 
         style={{
           position: 'absolute',

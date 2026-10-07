@@ -64,7 +64,7 @@ export const Footer: React.FC = () => {
           }}
         >
           <span>BUILD: REV 1.0.4-PROD // THREE.JS WEBGL RENDERER</span>
-          <span>© {new Date().getFullYear()} HIMANSHU MAKHE. ALL RIGHTS RESERVED.</span>
+          <span>© 2026 HIMANSHU MAKHE. ALL RIGHTS RESERVED.</span>
         </div>
       </Container>
     </footer>

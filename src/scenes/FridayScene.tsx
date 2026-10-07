@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import { createStudioGround, setupStudioLighting } from './threeUtils';
 
 interface FridaySceneProps {
   interactive?: boolean;
@@ -29,139 +30,192 @@ export const FridayScene: React.FC<FridaySceneProps> = ({ interactive = true }) 
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(0, 0, 7.0);
+    const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 100);
+    camera.position.set(2.8, 2.5, 4.6);
+    camera.lookAt(0, 0.35, 0);
+
+    // Studio Lighting & Contact Shadow Ground
+    setupStudioLighting(scene);
+    createStudioGround(scene, 5, 5, 0, 1.8);
 
     const rootGroup = new THREE.Group();
+    rootGroup.position.y = 0.05;
     scene.add(rootGroup);
 
-    // --- 1. Central Compact AI Core ---
-    const coreGeo = new THREE.IcosahedronGeometry(0.7, 1);
-    const coreMat = new THREE.MeshStandardMaterial({
-      color: 0x090d16,
-      roughness: 0.2,
-      metalness: 0.9,
-      emissive: 0x0284c7,
-      emissiveIntensity: 0.35,
-      wireframe: false
+    // --- 1. PHYSICAL HARDWARE ENCLOSURE ---
+    // Machined aluminium lower base ring
+    const baseRingGeo = new THREE.CylinderGeometry(1.2, 1.25, 0.18, 32);
+    const alumMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2b3342,
+      roughness: 0.28,
+      metalness: 0.88
     });
-    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-    rootGroup.add(coreMesh);
+    const baseRing = new THREE.Mesh(baseRingGeo, alumMaterial);
+    baseRing.position.y = 0.09;
+    rootGroup.add(baseRing);
 
-    // Core Wireframe Facet Accent
-    const coreWireGeo = new THREE.WireframeGeometry(coreGeo);
-    const coreWireMat = new THREE.LineBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.75
+    // Dark matte polymer cylindrical main chassis
+    const bodyGeo = new THREE.CylinderGeometry(1.12, 1.15, 0.65, 32);
+    const polymerMaterial = new THREE.MeshStandardMaterial({
+      color: 0x11141c,
+      roughness: 0.55,
+      metalness: 0.15
     });
-    const coreWire = new THREE.LineSegments(coreWireGeo, coreWireMat);
-    coreMesh.add(coreWire);
+    const bodyMesh = new THREE.Mesh(bodyGeo, polymerMaterial);
+    bodyMesh.position.y = 0.45;
+    rootGroup.add(bodyMesh);
 
-    // --- 2. Internal Gimbal Rotation Rings ---
-    const ringMat1 = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.5 });
-    const ringMat2 = new THREE.LineBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.4 });
-
-    const ring1 = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(
-      new Array(64).fill(0).map((_, i) => {
-        const theta = (i / 64) * Math.PI * 2;
-        return new THREE.Vector3(Math.cos(theta) * 1.15, Math.sin(theta) * 1.15, 0);
-      })
-    ), ringMat1);
-    rootGroup.add(ring1);
-
-    const ring2 = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(
-      new Array(64).fill(0).map((_, i) => {
-        const theta = (i / 64) * Math.PI * 2;
-        return new THREE.Vector3(Math.cos(theta) * 1.35, 0, Math.sin(theta) * 1.35);
-      })
-    ), ringMat2);
-    rootGroup.add(ring2);
-
-    // --- 3. Circular Audio Waveform Reacting Ring ---
-    const waveformPointCount = 80;
-    const wavePoints: THREE.Vector3[] = [];
-    for (let i = 0; i <= waveformPointCount; i++) {
-      const theta = (i / waveformPointCount) * Math.PI * 2;
-      wavePoints.push(new THREE.Vector3(Math.cos(theta) * 1.75, Math.sin(theta) * 1.75, 0));
+    // Heatsink ventilation slots around circumference
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2;
+      const finGeo = new THREE.BoxGeometry(0.04, 0.35, 0.12);
+      const finMat = new THREE.MeshStandardMaterial({ color: 0x090b10, roughness: 0.7 });
+      const fin = new THREE.Mesh(finGeo, finMat);
+      fin.position.set(Math.cos(angle) * 1.14, 0.45, Math.sin(angle) * 1.14);
+      fin.rotation.y = -angle;
+      rootGroup.add(fin);
     }
-    const waveGeo = new THREE.BufferGeometry().setFromPoints(wavePoints);
-    const waveMat = new THREE.LineBasicMaterial({
-      color: 0x22d3ee,
-      transparent: true,
-      opacity: 0.8
-    });
-    const waveLine = new THREE.Line(waveGeo, waveMat);
-    rootGroup.add(waveLine);
 
-    // --- 4. MCP Tool Connection Nodes (Satellite Orbitals) ---
-    // Nodes representing VOICE IN -> AI CORE -> MCP TOOLS -> ACTION
-    const nodesData = [
-      { label: "VOICE_IN", angle: 0, radius: 2.3, color: 0x38bdf8 },
-      { label: "AI_CORE", angle: Math.PI * 0.5, radius: 2.2, color: 0x22d3ee },
-      { label: "MCP_TOOLS", angle: Math.PI, radius: 2.3, color: 0x38bdf8 },
-      { label: "ACTION_BUS", angle: Math.PI * 1.5, radius: 2.2, color: 0x34d399 }
+    // Chamfered top bezel (brushed metallic ring)
+    const bezelGeo = new THREE.CylinderGeometry(1.05, 1.12, 0.12, 32);
+    const bezelMesh = new THREE.Mesh(bezelGeo, alumMaterial);
+    bezelMesh.position.y = 0.82;
+    rootGroup.add(bezelMesh);
+
+    // Top smoked acrylic / glass inspection lens
+    const glassGeo = new THREE.CylinderGeometry(0.98, 0.98, 0.04, 32);
+    const glassMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x08101a,
+      roughness: 0.1,
+      metalness: 0.2,
+      transmission: 0.85,
+      transparent: true,
+      opacity: 0.75,
+      ior: 1.5
+    });
+    const glassMesh = new THREE.Mesh(glassGeo, glassMaterial);
+    glassMesh.position.y = 0.88;
+    rootGroup.add(glassMesh);
+
+    // --- 2. INTERNAL ELECTRONICS REVEAL (Under Glass) ---
+    // Sub-surface PCB substrate
+    const pcbGeo = new THREE.CylinderGeometry(0.94, 0.94, 0.02, 32);
+    const pcbMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0a1c12, // High-grade dark emerald PCB
+      roughness: 0.4,
+      metalness: 0.3
+    });
+    const pcbMesh = new THREE.Mesh(pcbGeo, pcbMaterial);
+    pcbMesh.position.y = 0.83;
+    rootGroup.add(pcbMesh);
+
+    // Central AI Core Package (ESP32-S3 Vector Processor Package)
+    const mcuGeo = new THREE.BoxGeometry(0.42, 0.04, 0.42);
+    const mcuMaterial = new THREE.MeshStandardMaterial({
+      color: 0x181e28,
+      roughness: 0.25,
+      metalness: 0.8,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.2
+    });
+    const mcuMesh = new THREE.Mesh(mcuGeo, mcuMaterial);
+    mcuMesh.position.y = 0.86;
+    rootGroup.add(mcuMesh);
+
+    // Gold Silicon Heat-Spreader Core Inlay
+    const dieGeo = new THREE.BoxGeometry(0.24, 0.02, 0.24);
+    const dieMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37, // Gold inlay
+      roughness: 0.15,
+      metalness: 0.95
+    });
+    const dieMesh = new THREE.Mesh(dieGeo, dieMat);
+    dieMesh.position.y = 0.885;
+    rootGroup.add(dieMesh);
+
+    // Acoustic Microphone Port (Center MEMS Ingestion)
+    const micPortGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.06, 16);
+    const micPortMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const micPort = new THREE.Mesh(micPortGeo, micPortMat);
+    micPort.position.y = 0.90;
+    rootGroup.add(micPort);
+
+    // --- 3. FLOATING ACOUSTIC SOUNDWAVE SPECTRUM ---
+    // Concentric pulsating audio rings expanding from the microphone aperture
+    const waveRings: THREE.Line[] = [];
+    for (let r = 0; r < 3; r++) {
+      const ringPts: THREE.Vector3[] = [];
+      const segs = 48;
+      for (let s = 0; s <= segs; s++) {
+        const rad = (s / segs) * Math.PI * 2;
+        ringPts.push(new THREE.Vector3(Math.cos(rad) * (0.35 + r * 0.25), 0, Math.sin(rad) * (0.35 + r * 0.25)));
+      }
+      const rGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
+      const rMat = new THREE.LineBasicMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.6 - r * 0.15
+      });
+      const waveLine = new THREE.Line(rGeo, rMat);
+      waveLine.position.y = 0.92;
+      rootGroup.add(waveLine);
+      waveRings.push(waveLine);
+    }
+
+    // --- 4. SATELLITE MCP & TOOL ACTION NODES ---
+    // Representing: VOICE → PROCESS → MCP → ACTION
+    const nodes = [
+      { label: "VOICE_IN", angle: 0, rad: 1.85, color: 0x38bdf8 },
+      { label: "AI_REASON", angle: Math.PI * 0.5, rad: 1.85, color: 0x22d3ee },
+      { label: "MCP_TOOLS", angle: Math.PI, rad: 1.85, color: 0x38bdf8 },
+      { label: "ACTUATE", angle: Math.PI * 1.5, rad: 1.85, color: 0x34d399 }
     ];
 
     const nodeGroup = new THREE.Group();
+    nodeGroup.position.y = 0.6;
     rootGroup.add(nodeGroup);
 
     const nodeMeshes: THREE.Mesh[] = [];
-    const nodeLines: THREE.Line[] = [];
+    nodes.forEach((n) => {
+      const nGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+      const nMat = new THREE.MeshStandardMaterial({
+        color: n.color,
+        roughness: 0.2,
+        metalness: 0.8,
+        emissive: n.color,
+        emissiveIntensity: 0.35
+      });
+      const m = new THREE.Mesh(nGeo, nMat);
+      m.position.set(Math.cos(n.angle) * n.rad, 0, Math.sin(n.angle) * n.rad);
+      nodeGroup.add(m);
+      nodeMeshes.push(m);
 
-    nodesData.forEach((node) => {
-      const nodeGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16);
-      const nodeMat = new THREE.MeshBasicMaterial({ color: node.color });
-      const mesh = new THREE.Mesh(nodeGeo, nodeMat);
-      mesh.position.set(
-        Math.cos(node.angle) * node.radius,
-        Math.sin(node.angle) * node.radius * 0.65,
-        Math.sin(node.angle) * 0.4
-      );
-      nodeMeshes.push(mesh);
-      nodeGroup.add(mesh);
-
-      // Connection bus line to core
-      const lineGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        mesh.position
-      ]);
+      // Subtle conduit line connecting to base
+      const linePts = [new THREE.Vector3(0, 0, 0), m.position];
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts);
       const lineMat = new THREE.LineDashedMaterial({
-        color: node.color,
-        dashSize: 0.1,
+        color: n.color,
+        dashSize: 0.08,
         gapSize: 0.08,
         transparent: true,
-        opacity: 0.45
+        opacity: 0.4
       });
-      const line = new THREE.Line(lineGeo, lineMat);
-      line.computeLineDistances();
-      nodeLines.push(line);
-      nodeGroup.add(line);
+      const cLine = new THREE.Line(lineGeo, lineMat);
+      cLine.computeLineDistances();
+      nodeGroup.add(cLine);
     });
 
-    // --- 5. Data Pulses (Traveling Packets) ---
-    const pulseCount = 4;
-    const pulseGeo = new THREE.SphereGeometry(0.04, 8, 8);
-    const pulseMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-    const pulses: THREE.Mesh[] = [];
-    for (let i = 0; i < pulseCount; i++) {
-      const p = new THREE.Mesh(pulseGeo, pulseMat);
-      rootGroup.add(p);
-      pulses.push(p);
-    }
+    // Sub-surface pulse packet
+    const packetGeo = new THREE.SphereGeometry(0.035, 8, 8);
+    const packetMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const packet = new THREE.Mesh(packetGeo, packetMat);
+    nodeGroup.add(packet);
 
-    // Lighting
-    const pointLight = new THREE.PointLight(0x38bdf8, 2, 10);
-    pointLight.position.set(2, 3, 4);
-    scene.add(pointLight);
-
-    const ambientLight = new THREE.AmbientLight(0x0f172a, 1.2);
-    scene.add(ambientLight);
-
-    // Mouse Interaction
+    // Mouse Tracking
     const mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
     const handleMouseMove = (e: MouseEvent) => {
       if (!interactive) return;
@@ -173,6 +227,13 @@ export const FridayScene: React.FC<FridaySceneProps> = ({ interactive = true }) 
     if (interactive) {
       container.addEventListener('mousemove', handleMouseMove);
     }
+
+    // IntersectionObserver for performance (only animate when visible)
+    let isVisible = true;
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting;
+    });
+    observer.observe(container);
 
     const handleResize = () => {
       if (!container) return;
@@ -187,53 +248,35 @@ export const FridayScene: React.FC<FridaySceneProps> = ({ interactive = true }) 
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(container);
 
-    // Animation Loop
     let animationFrameId: number;
     let clock = new THREE.Clock();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      if (!isVisible) return; // Save GPU/CPU when offscreen!
+
       const t = clock.getElapsedTime();
 
-      mouse.x += (mouse.targetX - mouse.x) * 0.06;
-      mouse.y += (mouse.targetY - mouse.y) * 0.06;
+      mouse.x += (mouse.targetX - mouse.x) * 0.05;
+      mouse.y += (mouse.targetY - mouse.y) * 0.05;
 
-      // Core rotation
-      coreMesh.rotation.x = t * 0.35;
-      coreMesh.rotation.y = t * 0.45;
+      // Realistic subtle turntable orientation
+      rootGroup.rotation.y = t * 0.12 + mouse.x * 0.35;
+      rootGroup.rotation.x = mouse.y * 0.15;
 
-      // Internal gimbal layers
-      ring1.rotation.z = t * 0.5;
-      ring1.rotation.x = Math.sin(t * 0.4) * 0.3;
-      ring2.rotation.y = -t * 0.4;
-      ring2.rotation.x = Math.cos(t * 0.3) * 0.3;
-
-      // Audio waveform react calculation
-      const wavePos = waveGeo.attributes.position.array as Float32Array;
-      for (let i = 0; i <= waveformPointCount; i++) {
-        const theta = (i / waveformPointCount) * Math.PI * 2;
-        const waveMod = Math.sin(theta * 6 + t * 4.0) * 0.1 + Math.sin(theta * 12 - t * 2.5) * 0.05;
-        const r = 1.75 + waveMod;
-        wavePos[i * 3] = Math.cos(theta) * r;
-        wavePos[i * 3 + 1] = Math.sin(theta) * r;
-        wavePos[i * 3 + 2] = Math.sin(theta * 3 + t * 2) * 0.15;
-      }
-      waveGeo.attributes.position.needsUpdate = true;
-
-      // Orbit nodes
-      nodeGroup.rotation.z = t * 0.12;
-
-      // Data pulses traveling along pipeline: VOICE -> AI -> MCP -> ACTION
-      pulses.forEach((p, idx) => {
-        const progress = ((t * 0.6 + idx * 0.25) % 1);
-        const targetNodeMesh = nodeMeshes[idx % nodeMeshes.length];
-        p.position.lerpVectors(new THREE.Vector3(0, 0, 0), targetNodeMesh.position, progress);
-        p.scale.setScalar(0.7 + Math.sin(progress * Math.PI) * 0.6);
+      // Acoustic wave pulse expansion
+      waveRings.forEach((r, idx) => {
+        const scale = 1 + ((t * 0.8 + idx * 0.33) % 1) * 0.6;
+        r.scale.set(scale, 1, scale);
       });
 
-      // Interactive tilt
-      rootGroup.rotation.y = mouse.x * 0.35;
-      rootGroup.rotation.x = -mouse.y * 0.25;
+      // Data pulse packet traveling across pipeline: VOICE → AI → MCP → ACTION
+      const cycle = (t * 0.5) % 1;
+      const targetIdx = Math.floor(cycle * nodeMeshes.length);
+      const nextIdx = (targetIdx + 1) % nodeMeshes.length;
+      const stepProgress = (cycle * nodeMeshes.length) % 1;
+
+      packet.position.lerpVectors(nodeMeshes[targetIdx].position, nodeMeshes[nextIdx].position, stepProgress);
 
       renderer.render(scene, camera);
     };
@@ -242,10 +285,11 @@ export const FridayScene: React.FC<FridaySceneProps> = ({ interactive = true }) 
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      observer.disconnect();
+      resizeObserver.disconnect();
       if (interactive) {
         container.removeEventListener('mousemove', handleMouseMove);
       }
-      resizeObserver.disconnect();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
@@ -254,10 +298,9 @@ export const FridayScene: React.FC<FridaySceneProps> = ({ interactive = true }) 
   }, [interactive]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '360px' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '380px' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }} />
-      
-      {/* Precision Pipeline Badge Overlay */}
+
       <div 
         style={{
           position: 'absolute',
@@ -266,15 +309,16 @@ export const FridayScene: React.FC<FridaySceneProps> = ({ interactive = true }) 
           fontFamily: 'var(--font-mono)',
           fontSize: '0.68rem',
           color: 'var(--text-accent)',
-          background: 'rgba(8, 9, 13, 0.75)',
-          padding: '3px 8px',
+          background: 'rgba(8, 9, 13, 0.85)',
+          padding: '4px 10px',
           borderRadius: '2px',
           border: '1px solid var(--border-subtle)',
           pointerEvents: 'none'
         }}
       >
-        PIPELINE: VOICE → AI → MCP → ACTION
+        PIPELINE: VOICE → PROCESS → MCP → ACTION
       </div>
+
       <div 
         style={{
           position: 'absolute',
@@ -286,7 +330,7 @@ export const FridayScene: React.FC<FridaySceneProps> = ({ interactive = true }) 
           pointerEvents: 'none'
         }}
       >
-        ESP32-S3 // I2S DMA STREAM
+        ESP32-S3 CORE // MACHINED ALLOY + ACRYLIC
       </div>
     </div>
   );

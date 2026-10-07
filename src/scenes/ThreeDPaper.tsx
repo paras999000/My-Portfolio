@@ -12,7 +12,6 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
     const container = containerRef.current;
     if (!container) return;
 
-    // Check WebGL availability
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
@@ -30,14 +29,13 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.25;
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     camera.position.set(0, 0, 7.5);
 
-    // Group to hold the paper artifact
     const artifactGroup = new THREE.Group();
     scene.add(artifactGroup);
 
@@ -56,12 +54,12 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
         vec3 pos = position;
 
         // Subtle organic undulating paper wave
-        float wave1 = sin(pos.x * 1.4 + uTime * 0.8) * cos(pos.y * 1.8 + uTime * 0.6) * 0.14;
-        float wave2 = sin(pos.x * 3.0 - pos.y * 2.2 + uTime * 0.4) * 0.04;
+        float wave1 = sin(pos.x * 1.4 + uTime * 0.75) * cos(pos.y * 1.8 + uTime * 0.55) * 0.12;
+        float wave2 = sin(pos.x * 3.0 - pos.y * 2.2 + uTime * 0.35) * 0.035;
         
         // Gentle cursor-induced ripple
         float distToMouse = length(pos.xy - uMouse * 2.5);
-        float mouseRipple = sin(distToMouse * 4.0 - uTime * 2.0) * exp(-distToMouse * 1.2) * 0.08;
+        float mouseRipple = sin(distToMouse * 4.0 - uTime * 2.0) * exp(-distToMouse * 1.2) * 0.07;
 
         pos.z += wave1 + wave2 + mouseRipple;
         vElevation = pos.z;
@@ -122,8 +120,7 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
         uResolution: { value: new THREE.Vector2(width, height) }
       },
       transparent: true,
-      side: THREE.DoubleSide,
-      wireframe: false
+      side: THREE.DoubleSide
     });
 
     const paperMesh = new THREE.Mesh(planeGeo, paperMaterial);
@@ -197,6 +194,13 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
       window.addEventListener('mousemove', handleMouseMove);
     }
 
+    // Performance IntersectionObserver (pauses loop when scrolled offscreen)
+    let isVisible = true;
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting;
+    });
+    observer.observe(container);
+
     // Resize Observer
     const handleResize = () => {
       if (!container) return;
@@ -214,10 +218,11 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
 
     // Animation Loop
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      if (!isVisible) return; // Save GPU when not visible
 
       const elapsedTime = clock.getElapsedTime();
       paperMaterial.uniforms.uTime.value = elapsedTime;
@@ -229,12 +234,12 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
       paperMaterial.uniforms.uMouse.value.set(mouse.x, mouse.y);
 
       // Subtle mechanical orientation response (restrained tilt)
-      artifactGroup.rotation.y = -0.32 + mouse.x * 0.18;
-      artifactGroup.rotation.x = 0.25 - mouse.y * 0.14;
+      artifactGroup.rotation.y = -0.32 + mouse.x * 0.16;
+      artifactGroup.rotation.x = 0.25 - mouse.y * 0.12;
       
       // Gentle floating oscillation
-      artifactGroup.position.y = Math.sin(elapsedTime * 0.7) * 0.08;
-      artifactGroup.position.z = Math.cos(elapsedTime * 0.5) * 0.05;
+      artifactGroup.position.y = Math.sin(elapsedTime * 0.7) * 0.06;
+      artifactGroup.position.z = Math.cos(elapsedTime * 0.5) * 0.04;
 
       renderer.render(scene, camera);
     };
@@ -243,6 +248,7 @@ export const ThreeDPaper: React.FC<ThreeDPaperProps> = ({ interactive = true }) 
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      observer.disconnect();
       if (interactive) {
         window.removeEventListener('mousemove', handleMouseMove);
       }
