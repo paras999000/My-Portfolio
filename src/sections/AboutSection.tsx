@@ -3,13 +3,17 @@ import { Container } from '../components/Container';
 import { SectionHeading } from '../components/SectionHeading';
 import { leadershipData, personalBio } from '../data/leadershipData';
 
-export const AboutSection: React.FC = () => {
+interface AboutSectionProps {
+  isPage?: boolean;
+}
+
+export const AboutSection: React.FC<AboutSectionProps> = ({ isPage = false }) => {
   return (
     <section 
       id="about-section"
       style={{
         position: 'relative',
-        paddingTop: 'var(--space-4xl)',
+        paddingTop: isPage ? 'var(--space-xl)' : 'var(--space-4xl)',
         paddingBottom: 'var(--space-4xl)',
         borderBottom: '1px solid var(--border-subtle)',
         backgroundColor: 'rgba(8, 9, 13, 0.6)'
@@ -17,10 +21,10 @@ export const AboutSection: React.FC = () => {
     >
       <Container>
         <SectionHeading
-          number="04 //"
-          pretitle="SYSTEMS LOG // PROFILE"
-          title="ABOUT & LEADERSHIP."
-          description="Bridging algorithmic intelligence with tactile physical hardware."
+          number={isPage ? "PROFILE //" : "04 //"}
+          pretitle={isPage ? "SYSTEMS DOSSIER" : "SYSTEMS LOG // PROFILE"}
+          title={isPage ? "ABOUT HIMANSHU MAKHE." : "ABOUT & LEADERSHIP."}
+          description={isPage ? "Hardware prototyping, low-level firmware engineering, real-time spatial computing, and technical community leadership." : "Bridging algorithmic intelligence with tactile physical hardware."}
         />
 
         {/* Editorial Layout: Photo (Left) + Engineering Bio (Right) */}
