@@ -29,6 +29,173 @@ export interface CadModelItem {
 
 export const cadModelsData: CadModelItem[] = [
   {
+    id: "friday-shell-esp32",
+    name: "FRIDAY Main Outer Shell Enclosure",
+    cadCode: "CAD-FRI-001",
+    category: "Structural Enclosure",
+    designedIn: "Autodesk Fusion 360",
+    manufacturing: "FDM Precision 3D Printing",
+    material: "PETG Matte Dark Slate",
+    dimensions: "88.0 × 53.2 × 108.0 mm",
+    electronics: "Houses ESP32-S3 SoC, INMP441 MEMS Mic, and Front Status Array",
+    status: "FABRICATED & ASSEMBLED",
+    fileUrl: "/models/02_FridayShell_esp32.stl",
+    fileType: "stl",
+    description: "Primary front outer structural enclosure for the FRIDAY AI voice assistant. Features internal acoustic chamber isolation ports, display window bezel, and perimeter snap alignment grooves.",
+    volume: "38.6 cm³",
+    infill: "28% Gyroid",
+    layerHeight: "0.16 mm",
+    estimatedPrintTime: "2h 45m",
+    tolerances: "±0.12 mm snap fit",
+    features: [
+      "Acoustic baffle isolating MEMS microphone from speaker vibrations",
+      "Front OLED bezel aperture with chamfered view window",
+      "Internal cable management channels and snap tabs",
+      "Draft angles optimized for support-free additive manufacturing"
+    ],
+    hardwareStory: [
+      {
+        step: "01",
+        title: "CAD MODELING",
+        description: "Solid modeling in Autodesk Fusion 360 with 1.8mm continuous wall thickness and acoustic backwave isolation."
+      },
+      {
+        step: "02",
+        title: "SLICING & 3D PRINTING",
+        description: "Sliced using OrcaSlicer with gyroid infill for isotropic resonance damping, printed in high-temp PETG at 240°C."
+      },
+      {
+        step: "03",
+        title: "SYSTEM INTEGRATION",
+        description: "Press-fit assembly of INMP441 MEMS mic and alignment with internal ESP32-S3 carrier board."
+      },
+      {
+        step: "04",
+        title: "PHYSICAL VALIDATION",
+        description: "Acoustic frequency response testing with zero resonance distortion during high-volume TTS playback."
+      }
+    ]
+  },
+  {
+    id: "friday-stand-base-esp32",
+    name: "FRIDAY Desktop Stand Base Mount",
+    cadCode: "CAD-FRI-002",
+    category: "Desktop Mount",
+    designedIn: "Autodesk Fusion 360",
+    manufacturing: "FDM Additive 3D Printing",
+    material: "PETG (Weighted Charcoal)",
+    dimensions: "74.8 × 62.1 × 10.0 mm",
+    electronics: "Pass-through for USB-C Power Harness & Anti-Slip Pad Recess",
+    status: "FABRICATED & ASSEMBLED",
+    fileUrl: "/models/06_FridayStandBase_esp32.stl",
+    fileType: "stl",
+    description: "Weighted ergonomic desktop base mount providing low center-of-gravity stability for the FRIDAY hardware system. Features bottom anti-slip rubber pads and USB-C harness strain relief.",
+    volume: "24.2 cm³",
+    infill: "40% Grid",
+    layerHeight: "0.20 mm",
+    estimatedPrintTime: "1h 35m",
+    tolerances: "±0.15 mm alignment boss",
+    features: [
+      "Interlocking mating boss for secure connection to FRIDAY shell",
+      "Bottom recessed perimeter for 1mm silicone anti-vibration feet",
+      "Internal channel for 90-degree USB-C power routing",
+      "Weighted core section for desktop stability"
+    ],
+    hardwareStory: [
+      {
+        step: "01",
+        title: "CAD DESIGN",
+        description: "Engineered in Fusion 360 with wide stance footprint to balance microphone angle toward speaker."
+      },
+      {
+        step: "02",
+        title: "FABRICATION",
+        description: "Printed with 40% dense grid infill to add mass and lower assembly center of gravity."
+      },
+      {
+        step: "03",
+        title: "FINAL ASSEMBLY",
+        description: "Installed silicone vibration dampening feet and integrated USB-C strain relief collar."
+      }
+    ]
+  },
+  {
+    id: "friday-carrier-esp32",
+    name: "FRIDAY Internal Hardware Carrier",
+    cadCode: "CAD-FRI-003",
+    category: "Internal Chassis",
+    designedIn: "Autodesk Fusion 360",
+    manufacturing: "FDM Additive 3D Printing",
+    material: "High-Temp PETG",
+    dimensions: "83.0 × 50.0 × 5.5 mm",
+    electronics: "Mounting Standoffs for ESP32-S3 NodeMCU & MAX98357A Amp",
+    status: "FABRICATED & ASSEMBLED",
+    fileUrl: "/models/04_FridayCarrier_esp32.stl",
+    fileType: "stl",
+    description: "Internal structural skeleton that secures the ESP32-S3 microcontroller board, MAX98357A Class-D amplifier module, and interconnect harness rigidly inside the shell.",
+    volume: "12.8 cm³",
+    infill: "30% Honeycomb",
+    layerHeight: "0.16 mm",
+    estimatedPrintTime: "55m",
+    tolerances: "±0.10 mm PCB rails",
+    features: [
+      "Dual PCB snap rails for fast serviceability without fasteners",
+      "Air gap ventilation slots for ESP32 Wi-Fi thermal management",
+      "Integrated strain relief clips for microphone I2S differential pairs",
+      "M2.5 mounting bosses for speaker transducer"
+    ],
+    hardwareStory: [
+      {
+        step: "01",
+        title: "SCHEMATIC TO CAD",
+        description: "Imported ESP32-S3 board step models directly into Fusion 360 to verify component clearances."
+      },
+      {
+        step: "02",
+        title: "PRINT & FIT CHECK",
+        description: "Rapid test iteration to verify snap-fit retention force and wiring harness clearance."
+      }
+    ]
+  },
+  {
+    id: "friday-rear-cover-esp32",
+    name: "FRIDAY Rear Service Access Plate",
+    cadCode: "CAD-FRI-004",
+    category: "Enclosure Panel",
+    designedIn: "Autodesk Fusion 360",
+    manufacturing: "FDM Additive 3D Printing",
+    material: "PETG Matte Dark Slate",
+    dimensions: "83.0 × 2.0 × 101.2 mm",
+    electronics: "Ventilation Louvers & UART Programming Access Port",
+    status: "FABRICATED & ASSEMBLED",
+    fileUrl: "/models/03_FridayRearCover_esp32.stl",
+    fileType: "stl",
+    description: "Rear closure panel featuring directional convection ventilation louvers, tool-free access tab, and dedicated port for direct ESP32 UART flashing.",
+    volume: "11.5 cm³",
+    infill: "30% Gyroid",
+    layerHeight: "0.16 mm",
+    estimatedPrintTime: "50m",
+    tolerances: "±0.12 mm perimeter lip",
+    features: [
+      "Convective thermal exhaust louvers",
+      "Perimeter snap-latch lip for tight structural closure",
+      "Direct cut-out for USB flashing access",
+      "Recessed thumb-tab for service removal"
+    ],
+    hardwareStory: [
+      {
+        step: "01",
+        title: "THERMAL MODELING",
+        description: "Positioned exhaust louvers directly above the ESP32-S3 heatsink plane for passive chimney-effect cooling."
+      },
+      {
+        step: "02",
+        title: "PRODUCTION PRINT",
+        description: "Printed flat on textured PEI bed for clean exterior matte cosmetic finish."
+      }
+    ]
+  },
+  {
     id: "lower-shell-body",
     name: "Lower Shell Housing Chassis",
     cadCode: "CAD-PRT-001",

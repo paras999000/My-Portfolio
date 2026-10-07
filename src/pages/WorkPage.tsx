@@ -2,19 +2,49 @@ import React, { useState } from 'react';
 import { Container } from '../components/Container';
 import { SectionHeading } from '../components/SectionHeading';
 import { ProjectCard } from '../components/ProjectCard';
+import { SecondaryProjectCard } from '../components/SecondaryProjectCard';
 import { projectsData } from '../data/projectsData';
 
 export const WorkPage: React.FC = () => {
   const [filter, setFilter] = useState<string>('ALL');
 
-  const categories = ['ALL', 'EMBEDDED AI', 'AR SIMULATION', 'ROBOTICS', 'IoT'];
+  const categories = [
+    'ALL',
+    'EMBEDDED & HARDWARE',
+    'IoT',
+    'AI / ML',
+    'CYBERSECURITY',
+    'AR / 3D',
+    'ROBOTICS',
+    'SYSTEMS & DEVOPS'
+  ];
 
   const filteredProjects = projectsData.filter((p) => {
     if (filter === 'ALL') return true;
-    if (filter === 'EMBEDDED AI') return p.category.includes('EMBEDDED AI');
-    if (filter === 'AR SIMULATION') return p.category.includes('SIMULATION') || p.category.includes('AR');
-    if (filter === 'ROBOTICS') return p.category.includes('ROBOTICS');
-    if (filter === 'IoT') return p.category.includes('THINGS') || p.category.includes('IoT');
+    const cat = p.category.toUpperCase();
+    const techs = p.technologies.map(t => t.toUpperCase()).join(' ');
+
+    if (filter === 'EMBEDDED & HARDWARE') {
+      return cat.includes('EMBEDDED') || cat.includes('HARDWARE') || techs.includes('ESP32') || techs.includes('PICO');
+    }
+    if (filter === 'IoT') {
+      return cat.includes('IOT') || techs.includes('THINGSPEAK') || techs.includes('SUPABASE') || techs.includes('SENSOR');
+    }
+    if (filter === 'AI / ML') {
+      return cat.includes('AI') || cat.includes('ML') || cat.includes('ALGORITHMS') || techs.includes('GEMINI') || techs.includes('A*');
+    }
+    if (filter === 'CYBERSECURITY') {
+      return cat.includes('CYBERSECURITY') || cat.includes('DFIR') || techs.includes('SHA-256') || techs.includes('WORM');
+    }
+    if (filter === 'AR / 3D') {
+      return cat.includes('AR') || cat.includes('3D') || techs.includes('UNITY') || techs.includes('ARCORE');
+    }
+    if (filter === 'ROBOTICS') {
+      return cat.includes('ROBOTICS') || techs.includes('SERVOS') || techs.includes('KINEMATICS');
+    }
+    if (filter === 'SYSTEMS & DEVOPS') {
+      return cat.includes('SYSTEMS') || cat.includes('DEVOPS') || techs.includes('DOCKER') || techs.includes('POSTGRESQL');
+    }
     return true;
   });
 
@@ -25,7 +55,7 @@ export const WorkPage: React.FC = () => {
           number="CATALOG // 01"
           pretitle="SYSTEMS ENGINEERING"
           title="SELECTED HARDWARE & SOFTWARE WORK."
-          description="Explore physical computing prototypes, embedded firmware architectures, real-time kinematics, and spatial simulation engines."
+          description="Explore physical computing prototypes, embedded firmware architectures, real-time kinematics, cryptographic forensics, and spatial simulation engines."
         />
 
         {/* Filter Bar */}
@@ -33,7 +63,7 @@ export const WorkPage: React.FC = () => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
+            gap: '8px',
             flexWrap: 'wrap',
             marginBottom: 'var(--space-2xl)',
             padding: '12px',
@@ -64,17 +94,62 @@ export const WorkPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Projects List */}
-        <div>
-          {filteredProjects.map((project, index) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              index={index}
-              reversed={index % 2 !== 0}
-            />
-          ))}
-        </div>
+        {/* Projects Grid / List */}
+        {filter === 'ALL' ? (
+          <div>
+            {/* Top 4 Featured Systems */}
+            <div style={{ marginBottom: 'var(--space-3xl)' }}>
+              {filteredProjects.slice(0, 4).map((project, index) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  index={index}
+                  reversed={index % 2 !== 0}
+                />
+              ))}
+            </div>
+
+            {/* Remaining Systems Grid */}
+            <div style={{ paddingTop: 'var(--space-xl)', borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ marginBottom: 'var(--space-xl)' }}>
+                <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', color: 'var(--text-accent)', letterSpacing: '0.1em' }}>
+                  MORE SYSTEMS // ENGINEERING INVENTORY
+                </h3>
+              </div>
+              <div 
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                  gap: 'var(--space-xl)'
+                }}
+              >
+                {filteredProjects.slice(4).map((project, index) => (
+                  <SecondaryProjectCard
+                    key={project.id}
+                    project={project}
+                    index={4 + index}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div 
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+              gap: 'var(--space-xl)'
+            }}
+          >
+            {filteredProjects.map((project, index) => (
+              <SecondaryProjectCard
+                key={project.id}
+                project={project}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
       </Container>
     </main>
   );

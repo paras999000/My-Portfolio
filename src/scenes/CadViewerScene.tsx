@@ -10,6 +10,9 @@ interface CadViewerSceneProps {
   showControls?: boolean;
 }
 
+// Global geometry cache so STL files are only parsed once across the session
+const cadGeometryCache = new Map<string, THREE.BufferGeometry>();
+
 export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
   model,
   height = '520px',
@@ -18,16 +21,40 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [wireframe, setWireframe] = useState<boolean>(false);
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
+  const [controlMode, setControlMode] = useState<'orbit' | 'pan'>('orbit');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [inspectionMode, setInspectionMode] = useState<boolean>(false);
   const [lightingPreset, setLightingPreset] = useState<'studio' | 'contrast' | 'inspection'>('studio');
   const [loading, setLoading] = useState<boolean>(true);
   const [loadProgress, setLoadProgress] = useState<number>(0);
   const [errorOccurred, setErrorOccurred] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [stats, setStats] = useState<{ vertices: number; triangles: number; bbox: string }>({
     vertices: 0,
     triangles: 0,
     bbox: ''
   });
+
+  const autoRotateRef = useRef<boolean>(autoRotate);
+  const controlModeRef = useRef<'orbit' | 'pan'>(controlMode);
+  const wireframeRef = useRef<boolean>(wireframe);
+  const inspectionModeRef = useRef<boolean>(inspectionMode);
+
+  useEffect(() => {
+    autoRotateRef.current = autoRotate;
+  }, [autoRotate]);
+
+  useEffect(() => {
+    controlModeRef.current = controlMode;
+  }, [controlMode]);
+
+  useEffect(() => {
+    wireframeRef.current = wireframe;
+  }, [wireframe]);
+
+  useEffect(() => {
+    inspectionModeRef.current = inspectionMode;
+  }, [inspectionMode]);
 
   const sceneStateRef = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -43,7 +70,19 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     fillLight: THREE.DirectionalLight;
     rimLight: THREE.DirectionalLight;
     resetCamera: () => void;
+    zoom: (delta: number) => void;
+    setupGeometry: (geometry: THREE.BufferGeometry) => void;
+    loadModel: (model: CadModelItem) => void;
   } | null>(null);
+
+  // Fullscreen event listener
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
 
   // Wireframe toggle effect
   useEffect(() => {
@@ -70,17 +109,17 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     if (sceneStateRef.current) {
       const { keyLight, fillLight, rimLight } = sceneStateRef.current;
       if (lightingPreset === 'studio') {
-        keyLight.intensity = 2.2;
-        fillLight.intensity = 1.0;
-        rimLight.intensity = 1.4;
-      } else if (lightingPreset === 'contrast') {
         keyLight.intensity = 3.4;
-        fillLight.intensity = 0.3;
-        rimLight.intensity = 2.0;
+        fillLight.intensity = 2.2;
+        rimLight.intensity = 2.8;
+      } else if (lightingPreset === 'contrast') {
+        keyLight.intensity = 4.2;
+        fillLight.intensity = 1.0;
+        rimLight.intensity = 3.5;
       } else if (lightingPreset === 'inspection') {
-        keyLight.intensity = 1.8;
-        fillLight.intensity = 1.8;
-        rimLight.intensity = 0.8;
+        keyLight.intensity = 3.0;
+        fillLight.intensity = 3.0;
+        rimLight.intensity = 1.5;
       }
     }
   }, [lightingPreset]);
@@ -102,18 +141,18 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     }
   }, []);
 
+  // Zoom triggers
+  const handleZoom = useCallback((direction: 'in' | 'out') => {
+    if (sceneStateRef.current) {
+      const delta = direction === 'in' ? -0.6 : 0.6;
+      sceneStateRef.current.zoom(delta);
+    }
+  }, []);
+
+  // --- INITIALIZE WEBGL ENGINE ONCE ON MOUNT ---
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
-    let isDisposed = false;
-    requestAnimationFrame(() => {
-      if (!isDisposed) {
-        setLoading(true);
-        setLoadProgress(15);
-        setErrorOccurred(false);
-      }
-    });
 
     let renderer: THREE.WebGLRenderer;
     try {
@@ -123,12 +162,7 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
         powerPreference: 'high-performance'
       });
     } catch {
-      requestAnimationFrame(() => {
-        if (!isDisposed) {
-          setLoading(false);
-          setErrorOccurred(true);
-        }
-      });
+      setErrorOccurred(true);
       return;
     }
 
@@ -138,7 +172,7 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     renderer.setSize(width, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.35;
+    renderer.toneMappingExposure = 1.5;
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -155,21 +189,21 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     scene.add(meshGroup);
 
     const annotationGroup = new THREE.Group();
-    annotationGroup.visible = inspectionMode;
+    annotationGroup.visible = inspectionModeRef.current;
     scene.add(annotationGroup);
 
-    // Real Engineering Titanium / Matte Carbon CAD Material
+    // High-visibility Aerospace Bead-Blasted Aluminum CAD Material
     const material = new THREE.MeshStandardMaterial({
-      color: 0x272f3d,
-      roughness: 0.35,
-      metalness: 0.72,
-      wireframe: wireframe
+      color: 0x94a3b8,
+      roughness: 0.28,
+      metalness: 0.62,
+      wireframe: wireframeRef.current
     });
 
     const wireMaterial = new THREE.LineBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
-      opacity: 0.65
+      opacity: 0.75
     });
 
     const resetCamera = () => {
@@ -178,20 +212,8 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
       meshGroup.rotation.set(0, 0, 0);
     };
 
-    sceneStateRef.current = {
-      renderer,
-      scene,
-      camera,
-      meshGroup,
-      material,
-      wireMaterial,
-      wireSegments: null,
-      bboxHelper: null,
-      annotationGroup,
-      keyLight,
-      fillLight,
-      rimLight,
-      resetCamera
+    const zoom = (delta: number) => {
+      camera.position.z = Math.max(1.8, Math.min(8.5, camera.position.z + delta));
     };
 
     const setupGeometry = (geometry: THREE.BufferGeometry) => {
@@ -218,7 +240,7 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
       const wire = new THREE.LineSegments(edges, wireMaterial);
       wire.scale.copy(mesh.scale);
       wire.rotation.copy(mesh.rotation);
-      wire.visible = wireframe;
+      wire.visible = wireframeRef.current;
       meshGroup.add(wire);
 
       if (sceneStateRef.current) {
@@ -226,8 +248,12 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
       }
 
       // Bounding Box Inspection Wireframe
+      if (sceneStateRef.current?.bboxHelper) {
+        scene.remove(sceneStateRef.current.bboxHelper);
+        sceneStateRef.current.bboxHelper.dispose();
+      }
       const bboxHelper = new THREE.Box3Helper(new THREE.Box3().setFromObject(mesh), new THREE.Color(0x38bdf8));
-      bboxHelper.visible = inspectionMode;
+      bboxHelper.visible = inspectionModeRef.current;
       scene.add(bboxHelper);
       if (sceneStateRef.current) {
         sceneStateRef.current.bboxHelper = bboxHelper;
@@ -270,31 +296,79 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
       setLoading(false);
     };
 
-    const loader = new STLLoader();
+    const loadModel = (m: CadModelItem) => {
+      setLoading(true);
+      setLoadProgress(30);
+      setErrorOccurred(false);
+      setErrorMessage('');
 
-    if (model.fileType === 'stl' && model.fileUrl) {
-      loader.load(
-        model.fileUrl,
-        (geometry) => {
-          setLoadProgress(85);
-          setupGeometry(geometry);
-        },
-        (xhr) => {
-          if (xhr.lengthComputable) {
-            setLoadProgress(Math.round((xhr.loaded / xhr.total) * 100));
-          }
-        },
-        () => {
-          // Fallback procedural geometry if file load issue
-          setErrorOccurred(true);
-          const fallbackGeo = new THREE.BoxGeometry(2.0, 0.8, 1.2, 8, 8, 8);
-          setupGeometry(fallbackGeo);
+      if (m.fileType === 'stl' && m.fileUrl) {
+        if (cadGeometryCache.has(m.fileUrl)) {
+          setLoadProgress(90);
+          setupGeometry(cadGeometryCache.get(m.fileUrl)!.clone());
+        } else {
+          const loader = new STLLoader();
+          let didFinish = false;
+          const timeoutId = setTimeout(() => {
+            if (!didFinish) {
+              setErrorOccurred(true);
+              setErrorMessage(`CAD Asset timeout: ${m.name}`);
+              setLoading(false);
+            }
+          }, 8000);
+
+          loader.load(
+            m.fileUrl,
+            (geometry) => {
+              didFinish = true;
+              clearTimeout(timeoutId);
+              cadGeometryCache.set(m.fileUrl, geometry);
+              setLoadProgress(95);
+              setupGeometry(geometry.clone());
+            },
+            (xhr) => {
+              if (xhr.lengthComputable) {
+                setLoadProgress(Math.round((xhr.loaded / xhr.total) * 100));
+              }
+            },
+            () => {
+              didFinish = true;
+              clearTimeout(timeoutId);
+              setErrorOccurred(true);
+              setErrorMessage(import.meta.env.DEV ? `STLLoader error: ${m.fileUrl}` : 'CAD MODEL UNAVAILABLE');
+              setLoading(false);
+              const fallbackGeo = new THREE.BoxGeometry(2.0, 0.8, 1.2, 8, 8, 8);
+              setupGeometry(fallbackGeo);
+            }
+          );
         }
-      );
-    } else {
-      const proceduralGeo = new THREE.CylinderGeometry(0.8, 1.1, 1.6, 24, 6);
-      setupGeometry(proceduralGeo);
-    }
+      } else {
+        const proceduralGeo = new THREE.CylinderGeometry(0.8, 1.1, 1.6, 24, 6);
+        setupGeometry(proceduralGeo);
+      }
+    };
+
+    sceneStateRef.current = {
+      renderer,
+      scene,
+      camera,
+      meshGroup,
+      material,
+      wireMaterial,
+      wireSegments: null,
+      bboxHelper: null,
+      annotationGroup,
+      keyLight,
+      fillLight,
+      rimLight,
+      resetCamera,
+      zoom,
+      setupGeometry,
+      loadModel
+    };
+
+    // Load initial model right away on mount!
+    loadModel(model);
 
     // Interactive Orbit / Pan / Zoom
     let isDragging = false;
@@ -302,7 +376,13 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     let prevMouse = { x: 0, y: 0 };
 
     const onMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) isDragging = true;
+      if (e.button === 0) {
+        if (controlModeRef.current === 'pan') {
+          isPanning = true;
+        } else {
+          isDragging = true;
+        }
+      }
       if (e.button === 2) isPanning = true;
       prevMouse = { x: e.clientX, y: e.clientY };
     };
@@ -337,10 +417,15 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     let prevTouchDist = 0;
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1) {
-        isDragging = true;
+        if (controlModeRef.current === 'pan') {
+          isPanning = true;
+        } else {
+          isDragging = true;
+        }
         prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       } else if (e.touches.length === 2) {
         isDragging = false;
+        isPanning = false;
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         prevTouchDist = Math.sqrt(dx * dx + dy * dy);
@@ -348,12 +433,18 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1 && isDragging) {
+      if (e.touches.length === 1) {
         const dx = e.touches[0].clientX - prevMouse.x;
         const dy = e.touches[0].clientY - prevMouse.y;
         prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        meshGroup.rotation.y += dx * 0.012;
-        meshGroup.rotation.x += dy * 0.012;
+
+        if (isDragging) {
+          meshGroup.rotation.y += dx * 0.012;
+          meshGroup.rotation.x += dy * 0.012;
+        } else if (isPanning) {
+          camera.position.x -= dx * 0.006;
+          camera.position.y += dy * 0.006;
+        }
       } else if (e.touches.length === 2) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -368,6 +459,7 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
 
     const onTouchEnd = () => {
       isDragging = false;
+      isPanning = false;
       prevTouchDist = 0;
     };
 
@@ -402,14 +494,17 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     resizeObserver.observe(container);
 
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    let prevTime = performance.now();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       if (!isVisible) return;
 
-      const delta = clock.getDelta();
-      if (autoRotate && !isDragging) {
+      const now = performance.now();
+      const delta = (now - prevTime) / 1000;
+      prevTime = now;
+
+      if (autoRotateRef.current && !isDragging && !isPanning) {
         meshGroup.rotation.y += delta * 0.35;
       }
 
@@ -419,7 +514,6 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     animate();
 
     return () => {
-      isDisposed = true;
       cancelAnimationFrame(animationFrameId);
       dom.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
@@ -435,8 +529,16 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
+      sceneStateRef.current = null;
     };
-  }, [model, wireframe, inspectionMode, autoRotate]);
+  }, []);
+
+  // --- MODEL SWAPPING EFFECT (REUSES EXISTING WEBGL CONTEXT) ---
+  useEffect(() => {
+    if (sceneStateRef.current) {
+      sceneStateRef.current.loadModel(model);
+    }
+  }, [model]);
 
   return (
     <div 
@@ -485,15 +587,15 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
             left: '16px',
             fontFamily: 'var(--font-mono)',
             fontSize: '0.68rem',
-            color: 'var(--status-warning)',
-            backgroundColor: 'rgba(8, 9, 13, 0.85)',
-            padding: '3px 8px',
-            border: '1px solid rgba(251, 191, 36, 0.3)',
+            color: '#f87171',
+            backgroundColor: 'rgba(8, 9, 13, 0.90)',
+            padding: '4px 10px',
+            border: '1px solid rgba(248, 113, 113, 0.4)',
             borderRadius: '2px',
-            zIndex: 5
+            zIndex: 15
           }}
         >
-          NOTE: LIVE MESH STREAMING // PROCEDURAL GEOMETRY LOADED
+          CAD MODEL UNAVAILABLE {errorMessage ? `// ${errorMessage}` : '// PROCEDURAL FALLBACK LOADED'}
         </div>
       )}
 
@@ -524,26 +626,28 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
         </span>
       </div>
 
-      {/* Mesh Statistics (Top Right) */}
-      <div 
-        style={{
-          position: 'absolute',
-          top: '14px',
-          right: '16px',
-          pointerEvents: 'none',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.65rem',
-          color: 'var(--text-muted)',
-          textAlign: 'right',
-          zIndex: 5
-        }}
-      >
-        <div>VERTS: {stats.vertices.toLocaleString()}</div>
-        <div>TRIS: {Math.round(stats.triangles).toLocaleString()}</div>
-        <div>MAT: {model.material}</div>
-      </div>
+      {/* Mesh Statistics (Top Right, hidden in fullscreen mode for clean inspection) */}
+      {!isFullscreen && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: '14px',
+            right: '16px',
+            pointerEvents: 'none',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.65rem',
+            color: 'var(--text-muted)',
+            textAlign: 'right',
+            zIndex: 5
+          }}
+        >
+          <div>VERTS: {stats.vertices.toLocaleString()}</div>
+          <div>TRIS: {Math.round(stats.triangles).toLocaleString()}</div>
+          <div>MAT: {model.material}</div>
+        </div>
+      )}
 
-      {/* Interactive Controls Bar (Bottom) */}
+      {/* Professional CAD Inspection Controls Bar (Bottom) */}
       {showControls && (
         <div 
           style={{
@@ -559,8 +663,55 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
             zIndex: 10
           }}
         >
-          {/* Inspection Mode & Wireframe Toggles */}
+          {/* Inspection Mode, Wireframe & Interaction Modes */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* ORBIT Control */}
+            <button
+              onClick={() => setControlMode('orbit')}
+              className="tech-badge"
+              style={{
+                cursor: 'pointer',
+                backgroundColor: controlMode === 'orbit' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(8, 9, 13, 0.85)',
+                color: controlMode === 'orbit' ? 'var(--text-accent)' : 'var(--text-secondary)'
+              }}
+              title="3-Axis Orbit Mode"
+            >
+              ORBIT
+            </button>
+
+            {/* PAN Control */}
+            <button
+              onClick={() => setControlMode('pan')}
+              className="tech-badge"
+              style={{
+                cursor: 'pointer',
+                backgroundColor: controlMode === 'pan' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(8, 9, 13, 0.85)',
+                color: controlMode === 'pan' ? 'var(--text-accent)' : 'var(--text-secondary)'
+              }}
+              title="Camera Pan Mode"
+            >
+              PAN
+            </button>
+
+            {/* ZOOM Controls */}
+            <button
+              onClick={() => handleZoom('in')}
+              className="tech-badge"
+              style={{ cursor: 'pointer', backgroundColor: 'rgba(8, 9, 13, 0.85)' }}
+              title="Zoom In"
+            >
+              ZOOM +
+            </button>
+            <button
+              onClick={() => handleZoom('out')}
+              className="tech-badge"
+              style={{ cursor: 'pointer', backgroundColor: 'rgba(8, 9, 13, 0.85)' }}
+              title="Zoom Out"
+            >
+              ZOOM -
+            </button>
+
+            {/* WIREFRAME Toggle */}
             <button
               onClick={() => setWireframe(!wireframe)}
               className="tech-badge"
@@ -568,38 +719,42 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
                 cursor: 'pointer',
                 backgroundColor: wireframe ? 'rgba(56, 189, 248, 0.2)' : 'rgba(8, 9, 13, 0.85)'
               }}
-              title="Toggle wireframe rendering"
+              title="Toggle wireframe rendering (shows CAD technical edges)"
             >
-              {wireframe ? '● SOLID' : 'WIREFRAME'}
+              {wireframe ? '● WIREFRAME' : 'SOLID'}
             </button>
 
-            <button
-              onClick={() => setInspectionMode(!inspectionMode)}
-              className="tech-badge"
-              style={{
-                cursor: 'pointer',
-                backgroundColor: inspectionMode ? 'rgba(52, 211, 153, 0.2)' : 'rgba(8, 9, 13, 0.85)',
-                color: inspectionMode ? 'var(--status-active)' : 'var(--text-secondary)'
-              }}
-              title="Toggle CAD dimension markers and mounting points"
-            >
-              {inspectionMode ? '● INSPECT: ON' : 'INSPECT MODE'}
-            </button>
+            {!isFullscreen && (
+              <button
+                onClick={() => setInspectionMode(!inspectionMode)}
+                className="tech-badge"
+                style={{
+                  cursor: 'pointer',
+                  backgroundColor: inspectionMode ? 'rgba(52, 211, 153, 0.2)' : 'rgba(8, 9, 13, 0.85)',
+                  color: inspectionMode ? 'var(--status-active)' : 'var(--text-secondary)'
+                }}
+                title="Toggle CAD dimension markers and mounting points"
+              >
+                {inspectionMode ? '● INSPECT: ON' : 'INSPECT MODE'}
+              </button>
+            )}
 
-            <button
-              onClick={() => {
-                const next = lightingPreset === 'studio' ? 'contrast' : lightingPreset === 'contrast' ? 'inspection' : 'studio';
-                setLightingPreset(next);
-              }}
-              className="tech-badge"
-              style={{ cursor: 'pointer', backgroundColor: 'rgba(8, 9, 13, 0.85)' }}
-              title="Toggle Studio Lighting Setup"
-            >
-              LIGHT: {lightingPreset.toUpperCase()}
-            </button>
+            {!isFullscreen && (
+              <button
+                onClick={() => {
+                  const next = lightingPreset === 'studio' ? 'contrast' : lightingPreset === 'contrast' ? 'inspection' : 'studio';
+                  setLightingPreset(next);
+                }}
+                className="tech-badge"
+                style={{ cursor: 'pointer', backgroundColor: 'rgba(8, 9, 13, 0.85)' }}
+                title="Toggle Studio Lighting Setup"
+              >
+                LIGHT: {lightingPreset.toUpperCase()}
+              </button>
+            )}
           </div>
 
-          {/* Camera Controls */}
+          {/* Camera Reset, Auto-Rotate & Fullscreen */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <button
               onClick={() => setAutoRotate(!autoRotate)}
@@ -618,16 +773,19 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
               style={{ cursor: 'pointer', backgroundColor: 'rgba(8, 9, 13, 0.85)' }}
               title="Reset View to 3/4 Product Angle"
             >
-              RESET VIEW
+              RESET
             </button>
 
             <button
               onClick={toggleFullscreen}
               className="tech-badge"
-              style={{ cursor: 'pointer', backgroundColor: 'rgba(8, 9, 13, 0.85)' }}
+              style={{
+                cursor: 'pointer',
+                backgroundColor: isFullscreen ? 'rgba(56, 189, 248, 0.2)' : 'rgba(8, 9, 13, 0.85)'
+              }}
               title="Toggle Fullscreen Viewport"
             >
-              FULLSCREEN
+              {isFullscreen ? 'EXIT FULL' : 'FULLSCREEN'}
             </button>
           </div>
         </div>

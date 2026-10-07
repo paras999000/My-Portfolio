@@ -35,40 +35,64 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
-    camera.position.set(4.5, 4.2, 5.8);
-    camera.lookAt(0, 0.4, 0);
+    camera.position.set(4.6, 4.2, 5.8);
+    camera.lookAt(0, 0.45, 0);
 
     setupStudioLighting(scene);
-    createStudioGround(scene, 5.5, 5.5, 0, 2.2);
+    createStudioGround(scene, 5.8, 5.8, 0, 2.3);
 
     const rootGroup = new THREE.Group();
     scene.add(rootGroup);
 
-    // --- 1. REALISTIC ASPHALT / CONCRETE PARKING TARMAC ---
+    // --- 1. REALISTIC ASPHALT TARMAC & INFRASTRUCTURE ---
     const tarmacGeo = new THREE.BoxGeometry(4.8, 0.12, 3.4);
     const tarmacMat = new THREE.MeshStandardMaterial({
-      color: 0x141822, // Rich dark asphalt
-      roughness: 0.88,
+      color: 0x334155, // Architectural slate paved tarmac
+      roughness: 0.82,
       metalness: 0.12
     });
     const tarmac = new THREE.Mesh(tarmacGeo, tarmacMat);
     tarmac.position.y = 0.06;
     rootGroup.add(tarmac);
 
-    // Concrete curb perimeter border
-    const curbMat = new THREE.MeshStandardMaterial({ color: 0x2b3342, roughness: 0.7 });
+    // Concrete curb perimeter border with expansion joints
+    const curbMat = new THREE.MeshStandardMaterial({
+      color: 0x64748b, // Light cast concrete curb
+      roughness: 0.65,
+      metalness: 0.15
+    });
+
     const curbFront = new THREE.Mesh(new THREE.BoxGeometry(4.88, 0.16, 0.08), curbMat);
     curbFront.position.set(0, 0.08, 1.74);
     rootGroup.add(curbFront);
 
-    // 6 Parking Bays (2 rows of 3)
+    const curbBack = new THREE.Mesh(new THREE.BoxGeometry(4.88, 0.16, 0.08), curbMat);
+    curbBack.position.set(0, 0.08, -1.74);
+    rootGroup.add(curbBack);
+
+    // Central roadway dividing line (dashed white thermoplastic)
+    const roadLineGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-2.2, 0.125, 0),
+      new THREE.Vector3(2.2, 0.125, 0)
+    ]);
+    const roadLine = new THREE.Line(roadLineGeo, new THREE.LineDashedMaterial({
+      color: 0x94a3b8,
+      dashSize: 0.25,
+      gapSize: 0.20,
+      transparent: true,
+      opacity: 0.85
+    }));
+    roadLine.computeLineDistances();
+    rootGroup.add(roadLine);
+
+    // 6 Parking Bays (2 rows of 3) with distinct metallic automotive colors
     const bays = [
-      { id: "A01", x: -1.4, z: -0.85, occupied: true, carColor: 0x243044 },
-      { id: "A02", x: 0.0, z: -0.85, occupied: false, carColor: 0x000000 },
-      { id: "A03", x: 1.4, z: -0.85, occupied: true, carColor: 0x3d4b60 },
-      { id: "B01", x: -1.4, z: 0.85, occupied: false, carColor: 0x000000 },
-      { id: "B02", x: 0.0, z: 0.85, occupied: true, carColor: 0x1e2633 },
-      { id: "B03", x: 1.4, z: 0.85, occupied: false, carColor: 0x000000 }
+      { id: "01", x: -1.4, z: -0.85, occupied: true, carColor: 0x0284c7 }, // Electric Pacific Blue
+      { id: "02", x: 0.0, z: -0.85, occupied: false, carColor: 0x000000 },
+      { id: "03", x: 1.4, z: -0.85, occupied: true, carColor: 0xef4444 }, // Crimson Sport Red
+      { id: "04", x: -1.4, z: 0.85, occupied: false, carColor: 0x000000 },
+      { id: "05", x: 0.0, z: 0.85, occupied: true, carColor: 0xe2e8f0 }, // Alpine Pearl White
+      { id: "06", x: 1.4, z: 0.85, occupied: false, carColor: 0x000000 }
     ];
 
     const sensorCones: THREE.Mesh[] = [];
@@ -82,13 +106,13 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
         new THREE.Vector3(bay.x + 0.58, 0.125, bay.z - 0.65)
       ]);
       const bayLine = new THREE.Line(bayLineGeo, new THREE.LineBasicMaterial({
-        color: 0x64748b,
+        color: 0x94a3b8,
         transparent: true,
         opacity: 0.75
       }));
       rootGroup.add(bayLine);
 
-      // Concrete wheel stop barrier
+      // Concrete wheel stop barrier at rear of bay
       const wheelStop = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 0.1), curbMat);
       wheelStop.position.set(bay.x, 0.145, bay.z > 0 ? bay.z + 0.55 : bay.z - 0.55);
       rootGroup.add(wheelStop);
@@ -98,41 +122,60 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
         const car = new THREE.Group();
         car.position.set(bay.x, 0.12, bay.z);
 
-        // Vehicle Chassis
+        // Vehicle Chassis Body
         const bodyMat = new THREE.MeshStandardMaterial({
           color: bay.carColor,
-          roughness: 0.35,
-          metalness: 0.8
+          roughness: 0.28,
+          metalness: 0.72
         });
         const carBody = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.28, 1.15), bodyMat);
         carBody.position.y = 0.16;
         car.add(carBody);
 
-        // Windshield and Cabin
+        // Windshield and Cabin Glass
         const cabinMat = new THREE.MeshStandardMaterial({
-          color: 0x0a0f16,
-          roughness: 0.1,
-          metalness: 0.9
+          color: 0x1e293b,
+          roughness: 0.15,
+          metalness: 0.85
         });
         const carCabin = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.22, 0.65), cabinMat);
         carCabin.position.set(0, 0.38, -0.05);
         car.add(carCabin);
 
-        // Wheels
-        const tireMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        // Headlights & Taillights
+        const headlightMat = new THREE.MeshBasicMaterial({ color: 0xfffaed });
+        const taillightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+        [-0.28, 0.28].forEach((lx) => {
+          const hl = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.02), headlightMat);
+          hl.position.set(lx, 0.18, -0.58);
+          car.add(hl);
+
+          const tl = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.02), taillightMat);
+          tl.position.set(lx, 0.18, 0.58);
+          car.add(tl);
+        });
+
+        // Wheels with rims
+        const tireMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.95 });
+        const rimMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9 });
         [[-0.42, -0.32], [0.42, -0.32], [-0.42, 0.32], [0.42, 0.32]].forEach(([wx, wz]) => {
+          const wheelGroup = new THREE.Group();
+          wheelGroup.position.set(wx, 0.1, wz);
           const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.06, 16), tireMat);
           tire.rotateZ(Math.PI / 2);
-          tire.position.set(wx, 0.1, wz);
-          car.add(tire);
+          wheelGroup.add(tire);
+          const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.065, 8), rimMat);
+          rim.rotateZ(Math.PI / 2);
+          wheelGroup.add(rim);
+          car.add(wheelGroup);
         });
 
         rootGroup.add(car);
       }
 
       // Overhead Ultrasonic Sensor Gantry Node
-      const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.4, 8);
-      const poleMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
+      const poleGeo = new THREE.CylinderGeometry(0.022, 0.022, 1.4, 8);
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.3 });
       const pole = new THREE.Mesh(poleGeo, poleMat);
       pole.position.set(bay.x + 0.65, 0.7, bay.z);
       rootGroup.add(pole);
@@ -141,19 +184,19 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
       crossbar.position.set(bay.x + 0.32, 1.4, bay.z);
       rootGroup.add(crossbar);
 
-      // HC-SR04 Transceiver Pair Head
+      // HC-SR04 Transceiver Head Breakout PCB
       const sensorHead = new THREE.Mesh(
-        new THREE.BoxGeometry(0.18, 0.06, 0.1),
-        new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7 })
+        new THREE.BoxGeometry(0.18, 0.06, 0.10),
+        new THREE.MeshStandardMaterial({ color: 0x091a14, roughness: 0.45 })
       );
       sensorHead.position.set(bay.x, 1.38, bay.z);
       rootGroup.add(sensorHead);
 
-      // Dual Ultrasonic Transceiver Cylinders
-      [-0.04, 0.04].forEach((ox) => {
+      // Dual Ultrasonic Transceiver Cylinders (Brushed Metal)
+      [-0.045, 0.045].forEach((ox) => {
         const barrel = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.025, 0.025, 0.04, 12),
-          new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9 })
+          new THREE.CylinderGeometry(0.028, 0.028, 0.04, 14),
+          new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.92, roughness: 0.2 })
         );
         barrel.position.set(bay.x + ox, 1.34, bay.z);
         rootGroup.add(barrel);
@@ -164,7 +207,7 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
       const beaconMat = new THREE.MeshStandardMaterial({
         color: beaconColor,
         emissive: beaconColor,
-        emissiveIntensity: 0.8,
+        emissiveIntensity: 0.85,
         roughness: 0.2
       });
       const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), beaconMat);
@@ -208,6 +251,14 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
       new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 })
     );
     gatewayGroup.add(gatewayBorder);
+
+    // Antenna Mast on Gateway
+    const antennaMast = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.015, 0.015, 0.35, 8),
+      new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9 })
+    );
+    antennaMast.position.set(0.6, 0.55, 0);
+    gatewayGroup.add(antennaMast);
 
     // Conduit Data Lines connecting bays to the Gateway Terminal
     const conduitMat = new THREE.LineDashedMaterial({
@@ -275,13 +326,13 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
     resizeObserver.observe(container);
 
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const startTime = performance.now();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       if (!isVisible) return;
 
-      const t = clock.getElapsedTime();
+      const t = (performance.now() - startTime) * 0.001;
 
       mouse.x += (mouse.targetX - mouse.x) * 0.05;
       mouse.y += (mouse.targetY - mouse.y) * 0.05;
@@ -329,6 +380,7 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
     <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '380px' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }} />
 
+      {/* Engineering Overlay Telemetry */}
       <div 
         style={{
           position: 'absolute',
@@ -337,14 +389,18 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
           fontFamily: 'var(--font-mono)',
           fontSize: '0.68rem',
           color: 'var(--text-accent)',
-          background: 'rgba(8, 9, 13, 0.85)',
+          background: 'rgba(8, 9, 13, 0.88)',
           padding: '4px 10px',
           borderRadius: '2px',
           border: '1px solid var(--border-subtle)',
-          pointerEvents: 'none'
+          pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
         }}
       >
-        PIPELINE: VEHICLE → SENSOR → PICO W → NETWORK → DASHBOARD
+        <span className="tech-status-dot" />
+        <span>SIMULATION: SENSOR → CONTROLLER → NETWORK → DASHBOARD</span>
       </div>
 
       <div 
@@ -355,10 +411,30 @@ export const SmartParkingScene: React.FC<SmartParkingSceneProps> = ({ interactiv
           fontFamily: 'var(--font-mono)',
           fontSize: '0.65rem',
           color: 'var(--status-active)',
+          background: 'rgba(8, 9, 13, 0.75)',
+          padding: '3px 8px',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: '2px',
+          pointerEvents: 'none',
+          textAlign: 'right'
+        }}
+      >
+        <div>OCCUPANCY: 3 / 6 BAYS OCCUPIED</div>
+        <div style={{ color: 'var(--text-accent)' }}>RP2040 PICO W // LATENCY: 42MS</div>
+      </div>
+
+      <div 
+        style={{
+          position: 'absolute',
+          top: '12px',
+          left: '14px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.65rem',
+          color: 'var(--text-dim)',
           pointerEvents: 'none'
         }}
       >
-        LIVE OCCUPANCY: 3 / 6 SLOTS OCCUPIED
+        HC-SR04 SENSOR ARRAY // CANOPY GANTRY
       </div>
     </div>
   );

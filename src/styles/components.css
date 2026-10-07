@@ -317,6 +317,17 @@
   }
 }
 
+@media (max-width: 480px) {
+  .project-card-visual-wrapper {
+    min-height: 250px;
+  }
+  .telemetry-strip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
 /* ============================================================
    TELEMETRY BAR / TECHNICAL METADATA STRIP
    ============================================================ */

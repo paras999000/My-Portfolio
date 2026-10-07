@@ -28,7 +28,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, index, revers
     >
       {/* 3D Visual Column */}
       <div className="project-card-visual-wrapper tech-bracket">
-        <ProjectVisual projectId={project.id} interactive={hovered} />
+        <ProjectVisual projectId={project.id} interactive={true} priority={index < 2} />
         
         {/* Subtle corner index badge */}
         <div 

@@ -11,8 +11,8 @@ export const HomePage: React.FC = () => {
     <main>
       <HeroSection />
       <SelectedWorkSection />
-      <ThreeDLabSection />
       <DisciplinesSection />
+      <ThreeDLabSection />
       <AboutSection />
       <CtaSection />
     </main>

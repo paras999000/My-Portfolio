@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { Container } from '../components/Container';
 import { ProjectVisual } from '../components/ProjectVisual';
+import { TechnicalDiagram } from '../components/TechnicalDiagram';
 import { projectsData } from '../data/projectsData';
 
 export const ProjectDetailPage: React.FC = () => {
@@ -124,7 +125,7 @@ export const ProjectDetailPage: React.FC = () => {
             overflow: 'hidden'
           }}
         >
-          <ProjectVisual projectId={project.id} interactive={true} />
+          <ProjectVisual projectId={project.id} interactive={true} priority={true} />
           
           <div 
             style={{
@@ -289,6 +290,11 @@ export const ProjectDetailPage: React.FC = () => {
                 SYSTEM ARCHITECTURE
               </h2>
 
+              {/* Custom High-Fidelity Interactive Technical Schematic Diagram */}
+              <div style={{ margin: 'var(--space-xl) 0' }}>
+                <TechnicalDiagram projectId={project.id} />
+              </div>
+
               <div 
                 style={{
                   display: 'flex',
@@ -351,57 +357,59 @@ export const ProjectDetailPage: React.FC = () => {
             </section>
 
             {/* 05 — HARDWARE */}
-            <section id="sec-05" style={{ scrollMarginTop: '100px' }}>
-              <div className="section-pretitle">
-                <span className="section-number">05 //</span>
-                <span className="tech-label">PHYSICAL COMPONENTS & ICs</span>
-              </div>
-              <h2 className="section-title" style={{ fontSize: '1.8rem', marginBottom: 'var(--space-md)' }}>
-                HARDWARE SPECIFICATIONS
-              </h2>
+            {caseStudy.hardware && caseStudy.hardware.length > 0 && (
+              <section id="sec-05" style={{ scrollMarginTop: '100px' }}>
+                <div className="section-pretitle">
+                  <span className="section-number">05 //</span>
+                  <span className="tech-label">PHYSICAL COMPONENTS & ICs</span>
+                </div>
+                <h2 className="section-title" style={{ fontSize: '1.8rem', marginBottom: 'var(--space-md)' }}>
+                  HARDWARE SPECIFICATIONS
+                </h2>
 
-              <div 
-                style={{
-                  width: '100%',
-                  overflowX: 'auto',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '3px'
-                }}
-              >
-                <table 
+                <div 
                   style={{
                     width: '100%',
-                    borderCollapse: 'collapse',
-                    textAlign: 'left',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.8rem'
+                    overflowX: 'auto',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '3px'
                   }}
                 >
-                  <thead>
-                    <tr style={{ backgroundColor: 'var(--bg-surface-elevated)', borderBottom: '1px solid var(--border-medium)' }}>
-                      <th style={{ padding: '12px 16px', color: 'var(--text-accent)' }}>COMPONENT / IC</th>
-                      <th style={{ padding: '12px 16px', color: 'var(--text-accent)' }}>SUBSYSTEM ROLE</th>
-                      <th style={{ padding: '12px 16px', color: 'var(--text-accent)' }}>TECHNICAL SPEC</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {caseStudy.hardware.map((hw, idx) => (
-                      <tr 
-                        key={idx}
-                        style={{
-                          borderBottom: '1px solid var(--border-subtle)',
-                          backgroundColor: idx % 2 === 0 ? 'var(--bg-card)' : 'transparent'
-                        }}
-                      >
-                        <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{hw.component}</td>
-                        <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{hw.role}</td>
-                        <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{hw.spec}</td>
+                  <table 
+                    style={{
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      textAlign: 'left',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--bg-surface-elevated)', borderBottom: '1px solid var(--border-medium)' }}>
+                        <th style={{ padding: '12px 16px', color: 'var(--text-accent)' }}>COMPONENT / IC</th>
+                        <th style={{ padding: '12px 16px', color: 'var(--text-accent)' }}>SUBSYSTEM ROLE</th>
+                        <th style={{ padding: '12px 16px', color: 'var(--text-accent)' }}>TECHNICAL SPEC</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                    </thead>
+                    <tbody>
+                      {caseStudy.hardware.map((hw, idx) => (
+                        <tr 
+                          key={idx}
+                          style={{
+                            borderBottom: '1px solid var(--border-subtle)',
+                            backgroundColor: idx % 2 === 0 ? 'var(--bg-card)' : 'transparent'
+                          }}
+                        >
+                          <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{hw.component}</td>
+                          <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{hw.role}</td>
+                          <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{hw.spec}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
 
             {/* 06 — SOFTWARE */}
             <section id="sec-06" style={{ scrollMarginTop: '100px' }}>
@@ -480,6 +488,51 @@ export const ProjectDetailPage: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Engineering Documentation & CAD Media Support */}
+              {project.gallery && project.gallery.length > 0 && (
+                <div style={{ marginTop: 'var(--space-2xl)' }}>
+                  <div className="tech-coord" style={{ color: 'var(--text-accent)', marginBottom: '12px' }}>
+                    ENGINEERING DOCUMENTATION & SCHEMATIC REFERENCES
+                  </div>
+                  <div 
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                      gap: '12px'
+                    }}
+                  >
+                    {project.gallery.map((doc) => (
+                      <div 
+                        key={doc.id}
+                        className="tech-bracket"
+                        style={{
+                          padding: '16px',
+                          backgroundColor: 'var(--bg-card)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '2px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span className="tech-badge" style={{ fontSize: '0.66rem' }}>
+                            {doc.type.toUpperCase()}
+                          </span>
+                          <span className="tech-coord">{doc.specDoc}</span>
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {doc.title}
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                          {doc.caption}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </section>
