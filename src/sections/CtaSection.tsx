@@ -5,7 +5,11 @@ export const CtaSection: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [formSent, setFormSent] = useState(false);
-  const email = "himanshumakhe11@gmail.com";
+  const [name, setName] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
+  const [message, setMessage] = useState('');
+
+  const email = "himanshumakhe1234@gmail.com";
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(email);
@@ -15,11 +19,42 @@ export const CtaSection: React.FC = () => {
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name || !senderEmail || !message) return;
+
+    // Construct Mailto URI with prefilled packet payload
+    const subject = encodeURIComponent(`[PORTFOLIO DISPATCH] System Inquiry from ${name}`);
+    const body = encodeURIComponent(
+      `SENDER: ${name}\nEMAIL: ${senderEmail}\n\nTRANSMISSION PAYLOAD:\n${message}\n\n---\nDispatched via Himanshu Makhe Laboratory Portfolio`
+    );
+    const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
+
+    // Copy formatted message as backup
+    try {
+      navigator.clipboard.writeText(`From: ${name} (${senderEmail})\n\n${message}`);
+    } catch {
+      // ignore
+    }
+
+    // Launch mail client
+    window.location.href = mailtoUrl;
+
     setFormSent(true);
     setTimeout(() => {
-      setFormSent(false);
-      setShowContactForm(false);
-    }, 3000);
+      setName('');
+      setSenderEmail('');
+      setMessage('');
+    }, 1000);
+  };
+
+  const handleToggleForm = () => {
+    const nextState = !showContactForm;
+    setShowContactForm(nextState);
+    if (nextState) {
+      setTimeout(() => {
+        const input = document.getElementById('contact-sender-id');
+        if (input) input.focus();
+      }, 100);
+    }
   };
 
   return (
@@ -77,7 +112,7 @@ export const CtaSection: React.FC = () => {
             }}
           >
             <span className="tech-status-dot" />
-            OPEN FOR HARDWARE & SOFTWARE COLLABORATION
+            OPEN FOR HARDWARE &amp; SOFTWARE COLLABORATION
           </div>
 
           {/* Headline */}
@@ -142,20 +177,22 @@ export const CtaSection: React.FC = () => {
             </a>
 
             <button
-              onClick={() => setShowContactForm(!showContactForm)}
+              onClick={handleToggleForm}
               className="btn btn-primary"
               style={{ padding: '0.85rem 1.6rem' }}
             >
               <span>{showContactForm ? 'CLOSE TERMINAL' : 'GET IN TOUCH'}</span>
-              <span className="btn-arrow">→</span>
+              <span className="btn-arrow">{showContactForm ? '✕' : '→'}</span>
             </button>
           </div>
 
-          {/* Direct Email Quick Copy */}
+          {/* Direct Email Quick Copy & Launch */}
           <div 
             style={{
               display: 'flex',
               alignItems: 'center',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
               gap: '8px',
               fontFamily: 'var(--font-mono)',
               fontSize: '0.78rem',
@@ -163,19 +200,40 @@ export const CtaSection: React.FC = () => {
             }}
           >
             <span>DIRECT DISPATCH:</span>
+            <a
+              href={`mailto:${email}`}
+              className="tech-badge"
+              style={{
+                textDecoration: 'none',
+                color: 'var(--text-accent)',
+                backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                padding: '4px 10px',
+                borderRadius: '3px',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                transition: 'all 0.2s ease'
+              }}
+              title="Click to open default email client"
+            >
+              {email} ↗
+            </a>
+
             <button
               onClick={handleCopyEmail}
-              className="tech-badge"
-              style={{ cursor: 'pointer', color: 'var(--text-accent)' }}
-              title="Click to copy email address"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border-subtle)',
+                color: copied ? 'var(--status-active)' : 'var(--text-muted)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.72rem',
+                padding: '4px 8px',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              title="Copy to clipboard"
             >
-              {email}
+              {copied ? '✓ COPIED' : 'COPY'}
             </button>
-            {copied && (
-              <span style={{ color: 'var(--status-active)', fontSize: '0.72rem' }}>
-                [COPIED TO CLIPBOARD]
-              </span>
-            )}
           </div>
 
           {/* Interactive Contact Form Terminal */}
@@ -183,13 +241,15 @@ export const CtaSection: React.FC = () => {
             <div 
               style={{
                 width: '100%',
-                maxWidth: '560px',
+                maxWidth: '580px',
                 marginTop: 'var(--space-2xl)',
                 backgroundColor: 'var(--bg-surface)',
                 border: '1px solid var(--border-accent)',
-                borderRadius: '3px',
+                borderRadius: '4px',
                 padding: 'var(--space-xl)',
-                textAlign: 'left'
+                textAlign: 'left',
+                boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45)',
+                animation: 'fadeIn 0.25s ease-out'
               }}
             >
               <div 
@@ -197,33 +257,76 @@ export const CtaSection: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: 'var(--space-md)'
+                  marginBottom: 'var(--space-md)',
+                  paddingBottom: '8px',
+                  borderBottom: '1px solid var(--border-subtle)'
                 }}
               >
-                <span className="tech-coord" style={{ color: 'var(--text-accent)' }}>
-                  COMMUNICATION PROTOCOL // DIRECT PACKET
-                </span>
-                <span className="tech-status-dot" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="tech-status-dot" />
+                  <span className="tech-coord" style={{ color: 'var(--text-accent)', fontSize: '0.75rem' }}>
+                    DIRECT TRANSMISSION TERMINAL // SECURE DISPATCH
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowContactForm(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✕
+                </button>
               </div>
 
               {formSent ? (
                 <div 
                   style={{
-                    padding: 'var(--space-lg)',
+                    padding: 'var(--space-xl) var(--space-md)',
                     textAlign: 'center',
                     fontFamily: 'var(--font-mono)',
-                    color: 'var(--status-active)',
-                    fontSize: '0.85rem'
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '12px'
                   }}
                 >
-                  ✓ PACKET RECEIVED. ACKNOWLEDGED BY ENGINEERING LAB.
+                  <div style={{ color: 'var(--status-active)', fontSize: '1.2rem', fontWeight: 700 }}>
+                    ✓ TRANSMISSION INITIATED
+                  </div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '420px', lineHeight: 1.6 }}>
+                    Your default email client has been summoned with pre-formatted transmission headers to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>.
+                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    [Packet payload also copied to your clipboard]
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                    <a
+                      href={`mailto:${email}`}
+                      className="btn btn-primary"
+                      style={{ fontSize: '0.78rem', padding: '0.5rem 1rem' }}
+                    >
+                      OPEN MAIL CLIENT AGAIN ↗
+                    </a>
+                    <button
+                      onClick={() => setFormSent(false)}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.78rem', padding: '0.5rem 1rem' }}
+                    >
+                      SEND ANOTHER PACKET
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
                     <label 
                       htmlFor="contact-sender-id"
-                      style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '4px' }}
+                      style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '5px' }}
                     >
                       SENDER IDENTITY / NAME:
                     </label>
@@ -231,15 +334,17 @@ export const CtaSection: React.FC = () => {
                       id="contact-sender-id"
                       required
                       type="text"
-                      placeholder="e.g. Dr. Alex Vance"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Dr. Alex Vance / Tech Recruiter"
                       style={{
                         width: '100%',
                         backgroundColor: 'var(--bg-primary)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '2px',
-                        padding: '8px 12px',
+                        border: '1px solid var(--border-medium)',
+                        borderRadius: '3px',
+                        padding: '10px 12px',
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '0.8rem',
+                        fontSize: '0.84rem',
                         color: 'var(--text-primary)',
                         outline: 'none'
                       }}
@@ -249,7 +354,7 @@ export const CtaSection: React.FC = () => {
                   <div>
                     <label 
                       htmlFor="contact-dispatch-email"
-                      style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '4px' }}
+                      style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '5px' }}
                     >
                       RETURN EMAIL ADDRESS:
                     </label>
@@ -257,15 +362,17 @@ export const CtaSection: React.FC = () => {
                       id="contact-dispatch-email"
                       required
                       type="email"
+                      value={senderEmail}
+                      onChange={(e) => setSenderEmail(e.target.value)}
                       placeholder="e.g. alex@vance-labs.com"
                       style={{
                         width: '100%',
                         backgroundColor: 'var(--bg-primary)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '2px',
-                        padding: '8px 12px',
+                        border: '1px solid var(--border-medium)',
+                        borderRadius: '3px',
+                        padding: '10px 12px',
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '0.8rem',
+                        fontSize: '0.84rem',
                         color: 'var(--text-primary)',
                         outline: 'none'
                       }}
@@ -275,7 +382,7 @@ export const CtaSection: React.FC = () => {
                   <div>
                     <label 
                       htmlFor="contact-payload-message"
-                      style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '4px' }}
+                      style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '5px' }}
                     >
                       TRANSMISSION PAYLOAD / MESSAGE:
                     </label>
@@ -283,15 +390,17 @@ export const CtaSection: React.FC = () => {
                       id="contact-payload-message"
                       required
                       rows={4}
-                      placeholder="Describe the hardware project, system architecture, or inquiry..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Describe your hardware project, embedded AI collaboration, robotics initiative, or inquiry..."
                       style={{
                         width: '100%',
                         backgroundColor: 'var(--bg-primary)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '2px',
-                        padding: '8px 12px',
+                        border: '1px solid var(--border-medium)',
+                        borderRadius: '3px',
+                        padding: '10px 12px',
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '0.8rem',
+                        fontSize: '0.84rem',
                         color: 'var(--text-primary)',
                         outline: 'none',
                         resize: 'vertical'
@@ -302,9 +411,10 @@ export const CtaSection: React.FC = () => {
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    style={{ width: '100%', marginTop: '6px' }}
+                    style={{ width: '100%', marginTop: '6px', padding: '0.85rem' }}
                   >
-                    DISPATCH PACKET →
+                    <span>DISPATCH PACKET TO {email}</span>
+                    <span className="btn-arrow">→</span>
                   </button>
                 </form>
               )}

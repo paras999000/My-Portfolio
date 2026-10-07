@@ -31,7 +31,7 @@ export const ResumePage: React.FC = () => {
               <span className="btn-arrow">↓</span>
             </button>
             <a 
-              href="mailto:himanshumakhe11@gmail.com"
+              href="mailto:himanshumakhe1234@gmail.com"
               className="btn btn-secondary"
               style={{ padding: '0.65rem 1.3rem', fontSize: '0.78rem' }}
             >
@@ -86,7 +86,7 @@ export const ResumePage: React.FC = () => {
             </div>
 
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-muted)', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div>EMAIL: himanshumakhe11@gmail.com</div>
+              <div>EMAIL: himanshumakhe1234@gmail.com</div>
               <div>GITHUB: github.com/HimanshuMakhe</div>
               <div>LINKEDIN: linkedin.com/in/himanshu-makhe</div>
               <div>LOCATION: India // Workstation Node 01</div>
