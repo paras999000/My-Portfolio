@@ -244,6 +244,13 @@ export const ThreeDLabPage: React.FC = () => {
                   </div>
                 )}
 
+                {activeModel.format && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
+                    <span className="tech-coord">FORMAT:</span>
+                    <span style={{ color: 'var(--text-accent)' }}>{activeModel.format}</span>
+                  </div>
+                )}
+
                 {activeModel.designedIn && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
                     <span className="tech-coord">DESIGNED IN:</span>

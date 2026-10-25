@@ -133,7 +133,7 @@ export const CadModelCard: React.FC<CadModelCardProps> = ({
             pointerEvents: 'none'
           }}
         >
-          STL / 3D SOLID
+          {model.fileType === 'glb' || model.fileType === 'gltf' || model.fileUrl?.endsWith('.glb') ? 'GLB / CAD MODEL' : 'STL / 3D SOLID'}
         </div>
       </div>
 

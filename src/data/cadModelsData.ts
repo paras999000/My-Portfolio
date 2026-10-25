@@ -15,8 +15,9 @@ export interface CadModelItem {
   dimensions: string;
   electronics?: string;
   status: string;
+  format?: string;
   fileUrl: string;
-  fileType: "stl" | "gltf" | "procedural";
+  fileType: "stl" | "gltf" | "glb" | "procedural";
   description: string;
   volume: string;
   infill: string;
@@ -482,5 +483,55 @@ export const cadModelsData: CadModelItem[] = [
         description: "Completed full autonomous rover assembly; provides rapid single-screw top access for battery swapping."
       }
     ]
+  },
+  {
+    id: "temperature-enclosure-main-shell",
+    name: "Temperature Enclosure — Main Shell",
+    cadCode: "CAD-PRT-007",
+    category: "Enclosure / Product Design",
+    format: "GLB / CAD Model",
+    designedIn: "Autodesk Fusion 360",
+    manufacturing: "FDM Precision 3D Printing",
+    material: "PETG / Engineering Polymer",
+    dimensions: "100.0 × 49.8 × 85.0 mm",
+    electronics: "Dual Temperature Sensor Monitoring Bay & Wiring Harness Cavity",
+    status: "CAD DESIGN READY",
+    fileUrl: "/models/Tepm-Enclo-Main-Shell.glb",
+    fileType: "glb",
+    description: "Main shell component of a temperature-monitoring enclosure designed for physical electronics integration.",
+    volume: "67.0 cm³",
+    infill: "25% Gyroid",
+    layerHeight: "0.20 mm",
+    estimatedPrintTime: "3h 15m",
+    tolerances: "±0.15 mm alignment fit",
+    features: [
+      "Dual temperature sensor mounting and ventilation channels",
+      "Precision interlocking perimeter for enclosure backplate mating",
+      "Internal cavity volume optimized for thermal air circulation",
+      "Recessed fastener bosses for secure chassis closure"
+    ],
+    hardwareStory: [
+      {
+        step: "01",
+        title: "CAD MODELING",
+        description: "Parametric solid modeling of the main enclosure shell with calculated 100.0 × 49.8 × 85.0 mm envelope."
+      },
+      {
+        step: "02",
+        title: "THERMAL AIRFLOW DESIGN",
+        description: "Geometry engineered with internal air channels to facilitate accurate dual temperature monitoring."
+      },
+      {
+        step: "03",
+        title: "INTERLOCKING MATING INTERFACE",
+        description: "Designed perimeter alignment lip and fastener recesses for clean mating with the enclosure backplate."
+      },
+      {
+        step: "04",
+        title: "FABRICATION PREPARATION",
+        description: "Optimized wall thickness and draft angles prepared for precision additive manufacturing."
+      }
+    ]
   }
 ];
+

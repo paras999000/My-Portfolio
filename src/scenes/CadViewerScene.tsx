@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { CadModelItem } from '../data/cadModelsData';
 import { createStudioGround, setupStudioLighting, safeCreateRenderer, safeDisposeRenderer, getAssetUrl } from './threeUtils';
 
@@ -11,8 +12,9 @@ interface CadViewerSceneProps {
   showControls?: boolean;
 }
 
-// Global geometry cache so STL files are only parsed once across the session
+// Global geometry cache so STL and GLTF files are only parsed once across the session
 const cadGeometryCache = new Map<string, THREE.BufferGeometry>();
+const cadGltfCache = new Map<string, THREE.Group>();
 
 export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
   model,
@@ -67,12 +69,14 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
     wireSegments: THREE.LineSegments | null;
     bboxHelper: THREE.Box3Helper | null;
     annotationGroup: THREE.Group;
+    activeGltfScene: THREE.Group | null;
     keyLight: THREE.DirectionalLight;
     fillLight: THREE.DirectionalLight;
     rimLight: THREE.DirectionalLight;
     resetCamera: () => void;
     zoom: (delta: number) => void;
     setupGeometry: (geometry: THREE.BufferGeometry) => void;
+    setupGltf: (gltfScene: THREE.Group) => void;
     loadModel: (model: CadModelItem) => void;
   } | null>(null);
 
@@ -91,6 +95,27 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
       sceneStateRef.current.material.wireframe = wireframe;
       if (sceneStateRef.current.wireSegments) {
         sceneStateRef.current.wireSegments.visible = wireframe;
+      }
+      if (sceneStateRef.current.activeGltfScene) {
+        sceneStateRef.current.activeGltfScene.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            if (Array.isArray(mesh.material)) {
+              mesh.material.forEach((m) => {
+                if ('wireframe' in m) {
+                  (m as THREE.MeshStandardMaterial).wireframe = wireframe;
+                }
+              });
+            } else if (mesh.material && 'wireframe' in mesh.material) {
+              (mesh.material as THREE.MeshStandardMaterial).wireframe = wireframe;
+            }
+            mesh.children.forEach((c) => {
+              if (c instanceof THREE.LineSegments) {
+                c.visible = wireframe;
+              }
+            });
+          }
+        });
       }
     }
   }, [wireframe]);
@@ -246,6 +271,7 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
 
       if (sceneStateRef.current) {
         sceneStateRef.current.wireSegments = wire;
+        sceneStateRef.current.activeGltfScene = null;
       }
 
       // Bounding Box Inspection Wireframe
@@ -290,7 +316,99 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
       setStats({
         vertices: geometry.attributes.position.count,
         triangles: geometry.index ? geometry.index.count / 3 : geometry.attributes.position.count / 3,
-        bbox: `${(size.x * 10).toFixed(1)} × ${(size.y * 10).toFixed(1)} × ${(size.z * 10).toFixed(1)} mm`
+        bbox: `${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm`
+      });
+
+      setLoadProgress(100);
+      setLoading(false);
+    };
+
+    const setupGltf = (gltfScene: THREE.Group) => {
+      // 1. Calculate bounding box of the complete hierarchy
+      const bbox = new THREE.Box3().setFromObject(gltfScene);
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+      const center = new THREE.Vector3();
+      bbox.getCenter(center);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scaleFactor = 2.2 / (maxDim || 1);
+
+      // 2. Center and scale within a wrapper group preserving hierarchy
+      const wrapper = new THREE.Group();
+      gltfScene.position.set(-center.x, -center.y, -center.z);
+      wrapper.add(gltfScene);
+      wrapper.scale.setScalar(scaleFactor);
+      wrapper.rotation.x = -Math.PI / 2;
+
+      meshGroup.clear();
+      meshGroup.add(wrapper);
+
+      // 3. Count total vertices and triangles across all meshes, and add precision CAD edge lines
+      let totalVertices = 0;
+      let totalTriangles = 0;
+
+      gltfScene.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          const geo = mesh.geometry;
+          if (geo.attributes.position) {
+            totalVertices += geo.attributes.position.count;
+            totalTriangles += geo.index ? geo.index.count / 3 : geo.attributes.position.count / 3;
+          }
+
+          // Respect hierarchy and add precision CAD edge lines
+          const edges = new THREE.EdgesGeometry(geo, 28);
+          const wire = new THREE.LineSegments(edges, wireMaterial);
+          mesh.add(wire);
+          wire.visible = wireframeRef.current;
+        }
+      });
+
+      // Bounding Box Inspection Wireframe
+      if (sceneStateRef.current?.bboxHelper) {
+        scene.remove(sceneStateRef.current.bboxHelper);
+        sceneStateRef.current.bboxHelper.dispose();
+      }
+      const bboxHelper = new THREE.Box3Helper(new THREE.Box3().setFromObject(wrapper), new THREE.Color(0x38bdf8));
+      bboxHelper.visible = inspectionModeRef.current;
+      scene.add(bboxHelper);
+      if (sceneStateRef.current) {
+        sceneStateRef.current.bboxHelper = bboxHelper;
+        sceneStateRef.current.activeGltfScene = gltfScene;
+        sceneStateRef.current.wireSegments = null;
+      }
+
+      // Mounting Point Inspection Markers
+      annotationGroup.clear();
+      const mountOffsets = [
+        new THREE.Vector3(-0.8, -0.6, 0.4),
+        new THREE.Vector3(0.8, -0.6, 0.4),
+        new THREE.Vector3(-0.8, -0.6, -0.4),
+        new THREE.Vector3(0.8, -0.6, -0.4)
+      ];
+      mountOffsets.forEach((pos) => {
+        const marker = new THREE.Mesh(
+          new THREE.SphereGeometry(0.04, 8, 8),
+          new THREE.MeshBasicMaterial({ color: 0x34d399 })
+        );
+        marker.position.copy(pos);
+        annotationGroup.add(marker);
+
+        const labelCross = new THREE.LineSegments(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-0.06, 0, 0), new THREE.Vector3(0.06, 0, 0),
+            new THREE.Vector3(0, -0.06, 0), new THREE.Vector3(0, 0.06, 0)
+          ]),
+          new THREE.LineBasicMaterial({ color: 0x34d399 })
+        );
+        labelCross.position.copy(pos);
+        annotationGroup.add(labelCross);
+      });
+
+      setStats({
+        vertices: totalVertices,
+        triangles: Math.round(totalTriangles),
+        bbox: `${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)} mm`
       });
 
       setLoadProgress(100);
@@ -303,7 +421,48 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
       setErrorOccurred(false);
       setErrorMessage('');
 
-      if (m.fileType === 'stl' && m.fileUrl) {
+      if ((m.fileType === 'glb' || m.fileType === 'gltf' || m.fileUrl?.endsWith('.glb') || m.fileUrl?.endsWith('.gltf')) && m.fileUrl) {
+        if (cadGltfCache.has(m.fileUrl)) {
+          setLoadProgress(90);
+          setupGltf(cadGltfCache.get(m.fileUrl)!.clone(true));
+        } else {
+          const loader = new GLTFLoader();
+          let didFinish = false;
+          const timeoutId = setTimeout(() => {
+            if (!didFinish) {
+              setErrorOccurred(true);
+              setErrorMessage(`CAD Asset timeout: ${m.name}`);
+              setLoading(false);
+            }
+          }, 8000);
+
+          loader.load(
+            getAssetUrl(m.fileUrl),
+            (gltf) => {
+              didFinish = true;
+              clearTimeout(timeoutId);
+              cadGltfCache.set(m.fileUrl, gltf.scene);
+              setLoadProgress(95);
+              setupGltf(gltf.scene.clone(true));
+            },
+            (xhr) => {
+              if (xhr.lengthComputable) {
+                setLoadProgress(Math.round((xhr.loaded / xhr.total) * 100));
+              }
+            },
+            (err) => {
+              didFinish = true;
+              clearTimeout(timeoutId);
+              setErrorOccurred(true);
+              const errMsg = err instanceof Error ? err.message : String(err);
+              setErrorMessage(import.meta.env.DEV ? `GLTFLoader error: ${m.fileUrl} (${errMsg})` : 'CAD MODEL UNAVAILABLE');
+              setLoading(false);
+              const fallbackGeo = new THREE.BoxGeometry(2.0, 0.8, 1.2, 8, 8, 8);
+              setupGeometry(fallbackGeo);
+            }
+          );
+        }
+      } else if (m.fileType === 'stl' && m.fileUrl) {
         if (cadGeometryCache.has(m.fileUrl)) {
           setLoadProgress(90);
           setupGeometry(cadGeometryCache.get(m.fileUrl)!.clone());
@@ -359,12 +518,14 @@ export const CadViewerScene: React.FC<CadViewerSceneProps> = ({
       wireSegments: null,
       bboxHelper: null,
       annotationGroup,
+      activeGltfScene: null,
       keyLight,
       fillLight,
       rimLight,
       resetCamera,
       zoom,
       setupGeometry,
+      setupGltf,
       loadModel
     };
 

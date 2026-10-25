@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { CadModelItem } from '../data/cadModelsData';
 import { createContactShadowTexture, safeCreateRenderer, safeDisposeRenderer, getAssetUrl } from './threeUtils';
 
@@ -11,8 +12,9 @@ interface CadThumbnailPreviewProps {
   height?: string;
 }
 
-// Module-level geometry cache so STLs are only parsed once across cards
+// Module-level geometry cache so STLs and GLBs are only parsed once across cards
 const geometryCache = new Map<string, THREE.BufferGeometry>();
+const gltfCache = new Map<string, THREE.Group>();
 
 export const CadThumbnailPreview: React.FC<CadThumbnailPreviewProps> = ({
   model,
@@ -202,7 +204,53 @@ export const CadThumbnailPreview: React.FC<CadThumbnailPreviewProps> = ({
       modelGroup.add(wire);
     };
 
-    if (model.fileType === 'stl' && model.fileUrl) {
+    const setupGltfPreview = (gltfScene: THREE.Group) => {
+      const bbox = new THREE.Box3().setFromObject(gltfScene);
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+      const center = new THREE.Vector3();
+      bbox.getCenter(center);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scaleFactor = 1.9 / (maxDim || 1);
+
+      const wrapper = new THREE.Group();
+      gltfScene.position.set(-center.x, -center.y, -center.z);
+      wrapper.add(gltfScene);
+      wrapper.scale.setScalar(scaleFactor);
+      wrapper.rotation.x = -Math.PI / 2;
+
+      gltfScene.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          const edges = new THREE.EdgesGeometry(mesh.geometry, 30);
+          const wire = new THREE.LineSegments(edges, wireMat);
+          mesh.add(wire);
+        }
+      });
+
+      modelGroup.clear();
+      modelGroup.add(wrapper);
+    };
+
+    if ((model.fileType === 'glb' || model.fileType === 'gltf' || model.fileUrl?.endsWith('.glb') || model.fileUrl?.endsWith('.gltf')) && model.fileUrl) {
+      if (gltfCache.has(model.fileUrl)) {
+        setupGltfPreview(gltfCache.get(model.fileUrl)!.clone(true));
+      } else {
+        const loader = new GLTFLoader();
+        loader.load(
+          getAssetUrl(model.fileUrl),
+          (gltf) => {
+            gltfCache.set(model.fileUrl, gltf.scene);
+            setupGltfPreview(gltf.scene.clone(true));
+          },
+          undefined,
+          () => {
+            const fallbackGeo = new THREE.BoxGeometry(1.4, 0.6, 1.0, 4, 4, 4);
+            setupGeo(fallbackGeo);
+          }
+        );
+      }
+    } else if (model.fileType === 'stl' && model.fileUrl) {
       if (geometryCache.has(model.fileUrl)) {
         setupGeo(geometryCache.get(model.fileUrl)!.clone());
       } else {
